@@ -124,6 +124,7 @@ const DICT = {
     lvl_next: "на {l}-м: +{n} кв.",
     prof_season: "❄ Сезон",
     prof_t: "Профиль прогресса",
+    rt_updated: "⇅ Обновлено с другого устройства",
   },
 
   en: {
@@ -229,6 +230,7 @@ const DICT = {
     lvl_next: "at {l}: +{n} q.",
     prof_season: "❄ Season",
     prof_t: "Progress profile",
+    rt_updated: "⇅ Updated from another device",
   },
 };
 
@@ -554,9 +556,11 @@ let persist = saveLocal;
 let undoSnap = null,
   undoTimer = null;
 
-function showToast(msg) {
+function showToast(msg, withUndo = true) {
   const el = document.getElementById("toast");
   document.getElementById("toastMsg").textContent = msg;
+  document.getElementById("toastUndo").style.display = withUndo ? "" : "none";
+  if (!withUndo) undoSnap = null;
   el.style.display = "flex";
   clearTimeout(undoTimer);
   undoTimer = setTimeout(() => {
@@ -2238,10 +2242,75 @@ if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
     if (sessionUser && !cloudLoaded) {
       cloudLoaded = true;
       loadFromCloud();
+      subscribeRealtime();
     } else if (event === "SIGNED_OUT") {
       cloudLoaded = false;
+      unsubscribeRealtime();
     }
   });
+}
+
+// ---- realtime: живые обновления с других устройств ----
+// Требует включённого Realtime для таблицы profiles
+// (см. supabase/profiles-migration.sql); без него просто молчит.
+
+let rtChannel = null;
+
+function applyCloudRow(row) {
+  const full = row.profiles && typeof row.profiles === "object";
+
+  // неактивные слоты обновляем тихо
+  if (full) {
+    PROFILES.forEach((p) => {
+      if (p !== activeProfile && row.profiles[p]) writeSlot(p, row.profiles[p]);
+    });
+  }
+
+  const slot = full ? row.profiles[activeProfile] || {} : activeProfile === "pvp" ? row : null;
+  if (!slot) return;
+
+  const nd = slot.done || [];
+  const nl = slot.mylevel ?? 0;
+  const same = nd.length === done.size && nl === myLevel && nd.every((id) => done.has(id));
+
+  if (same) return; // эхо собственной записи
+
+  done = new Set(nd);
+  myLevel = nl;
+
+  document.getElementById("mylevel").value = myLevel;
+  saveLocal();
+  localStorage.setItem(levelKey(), myLevel);
+
+  updateStats();
+  updateLvlNext();
+  draw();
+  if (pinned) showInfo(pinned);
+
+  setSyncState("ok");
+  showToast(t("rt_updated"), false);
+}
+
+function subscribeRealtime() {
+  if (!sbClient || !sessionUser || rtChannel) return;
+
+  rtChannel = sbClient
+    .channel("profile-rt")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "profiles", filter: "id=eq." + sessionUser.id },
+      (payload) => {
+        if (payload.new && !syncBusy) applyCloudRow(payload.new);
+      },
+    )
+    .subscribe();
+}
+
+function unsubscribeRealtime() {
+  if (rtChannel && sbClient) {
+    sbClient.removeChannel(rtChannel);
+    rtChannel = null;
+  }
 }
 
 function applyAuthUI() {

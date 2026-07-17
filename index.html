@@ -243,6 +243,38 @@
       <button id="toastUndo" data-t="undo_btn">↩ Отменить</button>
     </div>
 
+    <div id="accModal" class="lg-overlay" style="display: none">
+      <div class="lg-card">
+        <button class="lg-x" id="accClose" aria-label="close">✕</button>
+
+        <h3 data-t="acc_title">Профиль</h3>
+
+        <p class="lg-sub" id="accEmail"></p>
+
+        <label class="acc-lbl" data-t="acc_nick">Никнейм</label>
+        <input type="text" id="accNick" maxlength="24" autocomplete="nickname" />
+
+        <label class="acc-lbl" data-t="acc_pass">Новый пароль</label>
+        <input type="password" id="accPass" autocomplete="new-password" placeholder="••••••" />
+
+        <button class="lg-primary" id="accSave" data-t="acc_save">Сохранить</button>
+
+        <div class="lg-err" id="accMsg"></div>
+
+        <div class="lg-or"><span data-t="acc_danger">сброс прогресса</span></div>
+
+        <div class="acc-resets">
+          <button class="lg-secondary acc-reset" data-slot="pvp">PVP</button>
+
+          <button class="lg-secondary acc-reset" data-slot="pve">PVE</button>
+
+          <button class="lg-secondary acc-reset" data-slot="season" data-t="prof_season">❄ Сезон</button>
+        </div>
+
+        <p class="lg-sub acc-note" data-t="acc_reset_note">Сброс очистит отметки и уровень выбранного профиля — локально и в облаке.</p>
+      </div>
+    </div>
+
     <div id="syncModal" class="lg-overlay" style="display: none">
       <div class="lg-card sync-card">
         <div class="sync-vs" aria-hidden="true">⚔</div>

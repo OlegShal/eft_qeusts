@@ -74,6 +74,15 @@ const DICT = {
     err_creds: "Неверный email или пароль. Нет аккаунта? Нажмите «Создать аккаунт».",
     err_unconfirmed: "Email не подтверждён — найдите письмо (проверьте спам) и перейдите по ссылке.",
     err_rate: "Слишком много попыток — подождите минуту и повторите.",
+    acc_title: "Профиль",
+    acc_nick: "Никнейм",
+    acc_pass: "Новый пароль",
+    acc_save: "Сохранить",
+    acc_saved: "Сохранено ✓",
+    acc_danger: "сброс прогресса",
+    acc_reset_note: "Сброс очистит отметки и уровень выбранного профиля — локально и в облаке.",
+    acc_reset_confirm: "Сбросить весь прогресс профиля {p}? Это действие необратимо.",
+    acc_reset_done: "Профиль {p} сброшен",
 
     c_quest: "Квест",
     c_trader: "Торговец",
@@ -188,6 +197,15 @@ const DICT = {
     err_creds: "Wrong email or password. No account yet? Use «Create account».",
     err_unconfirmed: "Email not confirmed — find the message (check spam) and follow the link.",
     err_rate: "Too many attempts — wait a minute and retry.",
+    acc_title: "Account",
+    acc_nick: "Nickname",
+    acc_pass: "New password",
+    acc_save: "Save",
+    acc_saved: "Saved ✓",
+    acc_danger: "reset progress",
+    acc_reset_note: "Reset clears the chosen profile's quests and level — locally and in the cloud.",
+    acc_reset_confirm: "Reset ALL progress of the {p} profile? This cannot be undone.",
+    acc_reset_done: "{p} profile reset",
 
     c_quest: "Quest",
     c_trader: "Trader",
@@ -2494,13 +2512,93 @@ function applyAuthUI() {
 
     prof.style.display = "flex";
 
-    document.getElementById("userName").textContent = sessionUser.email.split("@")[0];
+    document.getElementById("userName").textContent =
+      sessionUser.user_metadata?.nickname || sessionUser.email.split("@")[0];
   } else {
     login.style.display = "block";
 
     prof.style.display = "none";
   }
 }
+
+// ---- диалог профиля: ник, пароль, сброс слотов ----
+
+const accModal = document.getElementById("accModal");
+const accMsg = document.getElementById("accMsg");
+
+document.getElementById("userName").onclick = () => {
+  if (!sessionUser) return;
+  document.getElementById("accEmail").textContent = sessionUser.email;
+  document.getElementById("accNick").value =
+    sessionUser.user_metadata?.nickname || sessionUser.email.split("@")[0];
+  document.getElementById("accPass").value = "";
+  accMsg.textContent = "";
+  accMsg.style.color = "var(--bad)";
+  accModal.style.display = "flex";
+};
+
+document.getElementById("accClose").onclick = () => (accModal.style.display = "none");
+
+accModal.addEventListener("click", (e) => {
+  if (e.target === accModal) accModal.style.display = "none";
+});
+
+document.getElementById("accSave").onclick = async () => {
+  if (!sbClient || !sessionUser) return;
+
+  const nick = document.getElementById("accNick").value.trim();
+  const pass = document.getElementById("accPass").value;
+
+  const payload = {};
+  if (nick && nick !== (sessionUser.user_metadata?.nickname || "")) payload.data = { nickname: nick };
+  if (pass) payload.password = pass;
+
+  if (!payload.data && !payload.password) {
+    accModal.style.display = "none";
+    return;
+  }
+
+  accMsg.style.color = "var(--bad)";
+  accMsg.textContent = "…";
+
+  const { data, error } = await sbClient.auth.updateUser(payload);
+
+  if (error) {
+    accMsg.textContent = error.message;
+    return;
+  }
+
+  if (data?.user) sessionUser = data.user;
+  applyAuthUI();
+
+  accMsg.style.color = "var(--good)";
+  accMsg.textContent = t("acc_saved");
+};
+
+document.querySelectorAll(".acc-reset").forEach((b) => {
+  b.onclick = () => {
+    const slot = b.dataset.slot;
+
+    if (!confirm(t("acc_reset_confirm").replace("{p}", slot.toUpperCase()))) return;
+
+    writeSlot(slot, { done: [], mylevel: 0 });
+
+    if (slot === activeProfile) {
+      done = new Set();
+      myLevel = 0;
+      document.getElementById("mylevel").value = 0;
+      updateStats();
+      updateLvlNext();
+      draw();
+      if (pinned) showInfo(pinned);
+    }
+
+    persistCloudSoon();
+
+    accMsg.style.color = "var(--good)";
+    accMsg.textContent = t("acc_reset_done").replace("{p}", slot.toUpperCase());
+  };
+});
 
 const loginModal = document.getElementById("loginModal");
 

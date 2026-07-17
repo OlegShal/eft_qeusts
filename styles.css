@@ -550,6 +550,39 @@ header {
 #userName {
   font-weight: 700;
   color: var(--gold);
+  cursor: pointer;
+}
+
+#userName:hover {
+  text-decoration: underline;
+}
+
+.acc-lbl {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 2px;
+  text-align: left;
+}
+
+.acc-resets {
+  display: flex;
+  gap: 8px;
+}
+
+.acc-resets button {
+  flex: 1;
+}
+
+.acc-resets button:hover {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.acc-note {
+  margin: 0;
 }
 
 #syncState {

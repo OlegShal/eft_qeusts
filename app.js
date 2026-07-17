@@ -1865,6 +1865,12 @@ stage.addEventListener("pointerdown", (e) => {
 
   pts.set(e.pointerId, e);
 
+  // capture: pointerup долетит до stage, даже если курсор ушёл за его
+  // пределы — иначе пан «залипал» после отпускания кнопки снаружи
+  try {
+    stage.setPointerCapture(e.pointerId);
+  } catch (err) {}
+
   if (pts.size === 1) {
     panP = { x: e.clientX, y: e.clientY, tx, ty };
     pinch = null;

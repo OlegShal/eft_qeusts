@@ -1700,6 +1700,9 @@ document.getElementById("nextBtn").addEventListener("click", () => {
   document.getElementById("f-onlyavail").classList.toggle("on", on);
   syncNextBtn();
   draw();
+
+  // при включении пресета граф резко ужимается — сразу показываем его целиком
+  if (on && viewMode === "graph") fit();
 });
 
 document.getElementById("f-req").addEventListener("change", (e) => {

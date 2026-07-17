@@ -1551,6 +1551,24 @@ body.plannerview #planner {
   background: color-mix(in srgb, var(--gold) 8%, transparent);
 }
 
+/* сводка по карте в планировщике рейдов */
+
+.raid-summary {
+  margin-top: 10px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--line2);
+}
+
+.raid-summary .obj-title {
+  margin: 14px 0 6px;
+  font-size: 11px;
+}
+
+.raid-summary .obj {
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
 .todo {
   margin-top: 12px;
   border: 1px solid var(--line);

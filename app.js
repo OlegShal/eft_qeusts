@@ -116,6 +116,8 @@ const DICT = {
     fit_t: "Весь граф",
     objectives: "Цели",
     wiki: "Открыть на вики",
+    rs_items: "Нужны предметы",
+    rs_goals: "Цели на карте",
   },
 
   en: {
@@ -213,6 +215,8 @@ const DICT = {
     fit_t: "Fit whole graph",
     objectives: "Objectives",
     wiki: "Open wiki",
+    rs_items: "Items needed",
+    rs_goals: "Objectives here",
   },
 };
 
@@ -1289,6 +1293,53 @@ const plannerEl = document.getElementById("planner");
 
 let activeMap = null;
 
+// Сводка по карте: агрегированные предметы и цели из ДОСТУПНЫХ квестов,
+// без привязки к конкретному квесту. Одинаковые таргеты суммируются.
+const ITEM_OBJ_TYPES = new Set(["find", "collect", "key"]);
+
+function raidSummaryHTML(quests) {
+  const items = new Map(),
+    goals = new Map();
+
+  quests
+    .filter((q) => available(q) && q.objectives)
+    .forEach((q) => {
+      q.objectives.forEach((o) => {
+        if (o.optional) return;
+
+        const bucket = ITEM_OBJ_TYPES.has(o.type) ? items : goals;
+        const txt = LANG === "ru" && o.ru ? o.ru : o.en;
+        const key = txt + (o.fir ? "|fir" : "");
+
+        const cur = bucket.get(key) || { txt, type: o.type, fir: !!o.fir, count: 0 };
+        cur.count += o.count || 1;
+        bucket.set(key, cur);
+      });
+    });
+
+  if (!items.size && !goals.size) return "";
+
+  const rows = (m) =>
+    [...m.values()]
+      .map(
+        (v) =>
+          `<div class="obj"><span class="obj-ic">${OBJ_ICON[v.type] || "•"}</span>` +
+          `<span class="obj-tx">${v.txt}</span>` +
+          (v.count > 1 ? `<span class="obj-n">×${v.count}</span>` : "") +
+          (v.fir ? `<span class="obj-fir">FiR</span>` : "") +
+          `</div>`,
+      )
+      .join("");
+
+  let h = `<div class="raid-summary">`;
+
+  if (items.size) h += `<div class="obj-title">◈ ${t("rs_items")}</div><div class="objs">${rows(items)}</div>`;
+  if (goals.size) h += `<div class="obj-title">⌖ ${t("rs_goals")}</div><div class="objs">${rows(goals)}</div>`;
+
+  h += `</div>`;
+  return h;
+}
+
 function renderPlanner() {
   const avail = DATA.filter((d) => visible(d) && !done.has(d.id));
 
@@ -1394,6 +1445,8 @@ function renderPlanner() {
 </div>`;
     });
 
+    html += raidSummaryHTML(global);
+
     html += `</div></div>`;
   } else if (activeMap && maps[activeMap]) {
     const m = maps[activeMap];
@@ -1425,6 +1478,8 @@ function renderPlanner() {
 
 </div>`;
     });
+
+    html += raidSummaryHTML(m.quests);
 
     html += `</div></div>`;
   }

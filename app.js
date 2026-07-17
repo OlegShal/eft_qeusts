@@ -122,6 +122,8 @@ const DICT = {
     toast_done: "Готово",
     toast_undone: "Снято",
     lvl_next: "на {l}-м: +{n} кв.",
+    prof_season: "❄ Сезон",
+    prof_t: "Профиль прогресса",
   },
 
   en: {
@@ -225,6 +227,8 @@ const DICT = {
     toast_done: "Done",
     toast_undone: "Unmarked",
     lvl_next: "at {l}: +{n} q.",
+    prof_season: "❄ Season",
+    prof_t: "Progress profile",
   },
 };
 
@@ -494,23 +498,56 @@ try {
 } catch (e) {}
 const sx = (v) => Math.round(v * (seasonal ? 1.25 : 1));
 
-let done = new Set();
+// ---- профили прогресса: PVP / PVE / Сезон ----
+// У каждого слота свои done и уровень; PVP живёт в легаси-ключах,
+// чтобы существующий прогресс пользователей стал PVP-профилем без миграции.
+
+const PROFILES = ["pvp", "pve", "season"];
+
+let activeProfile = "pvp";
 
 try {
-  const v = localStorage.getItem("eft_kappa_done");
-  if (v) JSON.parse(v).forEach((id) => done.add(id));
+  const p = localStorage.getItem("eft_kappa_profile");
+  if (PROFILES.includes(p)) activeProfile = p;
 } catch (e) {}
 
+const doneKey = (p = activeProfile) => (p === "pvp" ? "eft_kappa_done" : "eft_kappa_done_" + p);
+const levelKey = (p = activeProfile) => (p === "pvp" ? "eft_kappa_level" : "eft_kappa_level_" + p);
+
+function readSlot(p) {
+  let d = [],
+    lvl = 0;
+  try {
+    d = JSON.parse(localStorage.getItem(doneKey(p)) || "[]");
+  } catch (e) {}
+  try {
+    lvl = +localStorage.getItem(levelKey(p)) || 0;
+  } catch (e) {}
+  return { done: d, mylevel: lvl };
+}
+
+function writeSlot(p, slot) {
+  try {
+    localStorage.setItem(doneKey(p), JSON.stringify(slot.done || []));
+    localStorage.setItem(levelKey(p), slot.mylevel || 0);
+  } catch (e) {}
+}
+
+let done = new Set();
+
+function loadProfileLocal() {
+  const s = readSlot(activeProfile);
+  done = new Set(s.done);
+  myLevel = s.mylevel;
+}
+
+loadProfileLocal();
+
 const saveLocal = () => {
-  localStorage.setItem("eft_kappa_done", JSON.stringify([...done]));
+  localStorage.setItem(doneKey(), JSON.stringify([...done]));
 };
 
 let persist = saveLocal;
-
-try {
-  const ml = localStorage.getItem("eft_kappa_level");
-  if (ml) myLevel = +ml;
-} catch (e) {}
 
 // отметка каскадная (закрывает пререквизиты / снимает потомков) —
 // одно случайное касание меняет много квестов, поэтому даём «Отменить»
@@ -1937,7 +1974,7 @@ function setLevel(v) {
   myLevel = Math.max(0, Math.min(79, Math.round(+v) || 0));
   const inp = document.getElementById("mylevel");
   if (inp) inp.value = myLevel;
-  localStorage.setItem("eft_kappa_level", myLevel);
+  localStorage.setItem(levelKey(), myLevel);
   updateLvlNext();
   draw();
   persistCloudSoon();
@@ -1946,6 +1983,31 @@ document.getElementById("mylevel").value = myLevel;
 document.getElementById("lvlminus").onclick = () => setLevel(myLevel - 1);
 document.getElementById("lvlplus").onclick = () => setLevel(myLevel + 1);
 document.getElementById("mylevel").addEventListener("change", (e) => setLevel(e.target.value));
+
+function switchProfile(p) {
+  if (p === activeProfile || !PROFILES.includes(p)) return;
+
+  activeProfile = p;
+  localStorage.setItem("eft_kappa_profile", p);
+
+  loadProfileLocal();
+  document.getElementById("mylevel").value = myLevel;
+  document.querySelectorAll("#profsw button").forEach((b) => b.classList.toggle("on", b.dataset.prof === p));
+
+  updateStats();
+  updateLvlNext();
+  draw();
+  if (pinned) showInfo(pinned);
+
+  if (sessionUser) loadFromCloud();
+}
+
+document.getElementById("profsw").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (b) switchProfile(b.dataset.prof);
+});
+
+document.querySelectorAll("#profsw button").forEach((b) => b.classList.toggle("on", b.dataset.prof === activeProfile));
 
 function applyTheme(th) {
   if (th) document.documentElement.setAttribute("data-theme", th);
@@ -2021,6 +2083,7 @@ document.getElementById("panelClose").onclick = () => document.body.classList.re
 const mobileMoves = [
   { el: document.querySelector(".ctrl"), to: "ps-search" },
   { el: document.getElementById("switch"), to: "ps-mode" },
+  { el: document.getElementById("profsw"), to: "ps-mode" },
   { el: document.getElementById("kappaBtn"), to: "ps-mode" },
   { el: document.querySelector(".hdr-tools"), to: "ps-tools" },
   { el: document.getElementById("langsw"), to: "ps-misc" },
@@ -2278,6 +2341,18 @@ document.getElementById("btnLogout").onclick = () => {
   if (sbClient) sbClient.auth.signOut();
 };
 
+// null — схема облака ещё неизвестна; true — есть jsonb-колонка profiles
+// (все 3 слота синхронизируются); false — легаси-схема (только PVP).
+let cloudHasProfilesCol = null;
+
+function migrationHint() {
+  setSyncState("err");
+  const el = document.getElementById("syncState");
+  if (el)
+    el.title =
+      "Слот " + activeProfile.toUpperCase() + " не синхронизируется: выполните supabase/profiles-migration.sql";
+}
+
 async function loadFromCloud() {
   if (!sbClient || !sessionUser) return;
 
@@ -2290,19 +2365,34 @@ async function loadFromCloud() {
     return;
   }
 
-  const cloudDone = new Set(data?.done || []);
-  const cloudLevel = data?.mylevel ?? 0;
+  if (data) cloudHasProfilesCol = "profiles" in data;
+
+  const full = data ? "profiles" in data : cloudHasProfilesCol === true;
+
+  let slot;
+  if (full) slot = (data?.profiles || {})[activeProfile] || {};
+  else if (activeProfile === "pvp") slot = { done: data?.done, mylevel: data?.mylevel };
+  else {
+    // легаси-схема хранит только PVP — этот слот живёт локально
+    migrationHint();
+    return;
+  }
+
+  const cloudDone = new Set(slot?.done || []);
+  const cloudLevel = slot?.mylevel ?? 0;
 
   const cloudEmpty = cloudDone.size === 0 && cloudLevel === 0;
   const localEmpty = done.size === 0 && myLevel === 0;
   const same = done.size === cloudDone.size && myLevel === cloudLevel && [...done].every((id) => cloudDone.has(id));
 
+  const cloudProfiles = full ? data?.profiles || {} : null;
+
   // Однозначные случаи решаем молча; спрашиваем пользователя только
   // когда локальный и облачный прогресс реально расходятся.
   if (same) setSyncState("ok");
-  else if (cloudEmpty) applySyncChoice("local", cloudDone, cloudLevel);
-  else if (localEmpty) applySyncChoice("cloud", cloudDone, cloudLevel);
-  else openSyncModal(cloudDone, cloudLevel);
+  else if (cloudEmpty) applySyncChoice("local", cloudDone, cloudLevel, cloudProfiles);
+  else if (localEmpty) applySyncChoice("cloud", cloudDone, cloudLevel, cloudProfiles);
+  else openSyncModal(cloudDone, cloudLevel, cloudProfiles);
 }
 
 // ---- конфликт прогресса: выбор пользователя ----
@@ -2315,19 +2405,19 @@ function progressMeta(doneSet, lvl) {
   return `${doneSet.size} ${t("q")} · ${pct}% ${t("sync_kappa")} · ${t("mylevel_short")} ${lvl}`;
 }
 
-function openSyncModal(cloudDone, cloudLevel) {
+function openSyncModal(cloudDone, cloudLevel, cloudProfiles) {
   document.getElementById("syncLocalMeta").textContent = progressMeta(done, myLevel);
   document.getElementById("syncCloudMeta").textContent = progressMeta(cloudDone, cloudLevel);
 
   const modal = document.getElementById("syncModal");
   modal.style.display = "flex";
 
-  document.getElementById("syncKeepLocal").onclick = () => applySyncChoice("local", cloudDone, cloudLevel);
-  document.getElementById("syncKeepCloud").onclick = () => applySyncChoice("cloud", cloudDone, cloudLevel);
-  document.getElementById("syncMerge").onclick = () => applySyncChoice("merge", cloudDone, cloudLevel);
+  document.getElementById("syncKeepLocal").onclick = () => applySyncChoice("local", cloudDone, cloudLevel, cloudProfiles);
+  document.getElementById("syncKeepCloud").onclick = () => applySyncChoice("cloud", cloudDone, cloudLevel, cloudProfiles);
+  document.getElementById("syncMerge").onclick = () => applySyncChoice("merge", cloudDone, cloudLevel, cloudProfiles);
 }
 
-function applySyncChoice(choice, cloudDone, cloudLevel) {
+function applySyncChoice(choice, cloudDone, cloudLevel, cloudProfiles) {
   document.getElementById("syncModal").style.display = "none";
 
   if (choice === "cloud") {
@@ -2339,14 +2429,36 @@ function applySyncChoice(choice, cloudDone, cloudLevel) {
   }
   // choice === "local": локальные данные остаются как есть
 
+  // выбор применяется и к неактивным слотам (при полной облачной схеме)
+  if (cloudProfiles) {
+    PROFILES.forEach((p) => {
+      if (p === activeProfile) return;
+
+      const local = readSlot(p);
+      const cloud = cloudProfiles[p] || { done: [], mylevel: 0 };
+
+      let out;
+      if (choice === "cloud") out = { done: cloud.done || [], mylevel: cloud.mylevel || 0 };
+      else if (choice === "local") out = local;
+      else
+        out = {
+          done: [...new Set([...(local.done || []), ...(cloud.done || [])])],
+          mylevel: Math.max(local.mylevel || 0, cloud.mylevel || 0),
+        };
+
+      writeSlot(p, out);
+    });
+  }
+
   document.getElementById("mylevel").value = myLevel;
-  localStorage.setItem("eft_kappa_level", myLevel);
+  localStorage.setItem(levelKey(), myLevel);
   saveLocal();
 
   if (choice === "cloud") setSyncState("ok");
   else persistCloudSoon();
 
   updateStats();
+  updateLvlNext();
   draw();
   if (pinned) showInfo(pinned);
 }
@@ -2387,18 +2499,46 @@ async function persistCloudNow() {
     return;
   }
 
+  if (cloudHasProfilesCol === false && activeProfile !== "pvp") {
+    // легаси-схема умеет хранить только PVP
+    migrationHint();
+    return;
+  }
+
   syncBusy = true;
   setSyncState("busy");
+
+  // легаси-поля done/mylevel всегда несут PVP-слот (обратная совместимость)
+  const pvp = activeProfile === "pvp" ? { done: [...done], mylevel: myLevel } : readSlot("pvp");
+  const payload = { id: sessionUser.id, done: pvp.done, mylevel: pvp.mylevel };
+
+  const withProfiles = cloudHasProfilesCol !== false;
+
+  if (withProfiles) {
+    payload.profiles = {};
+    PROFILES.forEach((p) => {
+      payload.profiles[p] = p === activeProfile ? { done: [...done], mylevel: myLevel } : readSlot(p);
+    });
+  }
 
   let error = null;
 
   try {
-    ({ error } = await sbClient.from("profiles").upsert({ id: sessionUser.id, done: [...done], mylevel: myLevel }));
+    ({ error } = await sbClient.from("profiles").upsert(payload));
   } catch (e) {
     error = e;
   }
 
   syncBusy = false;
+
+  // колонки profiles нет — запоминаем и повторяем в легаси-формате
+  if (error && withProfiles && cloudHasProfilesCol === null && /profiles/i.test(error.message || "")) {
+    cloudHasProfilesCol = false;
+    persistCloudNow();
+    return;
+  }
+
+  if (!error && withProfiles) cloudHasProfilesCol = true;
 
   if (syncDirty) {
     syncDirty = false;

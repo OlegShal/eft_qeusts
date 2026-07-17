@@ -585,6 +585,11 @@ header {
   color: var(--text);
 }
 
+#profsw button.on {
+  background: var(--goldsoft);
+  color: #fff;
+}
+
 .ctrl {
   display: flex;
   align-items: center;

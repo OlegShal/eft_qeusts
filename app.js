@@ -70,7 +70,10 @@ const DICT = {
     or: "или",
     google_btn: "Войти через Google",
     lg_need: "Введите email и пароль",
-    lg_confirm: "Аккаунт создан. Проверьте почту и подтвердите email.",
+    lg_confirm: "Аккаунт создан. Подтвердите email — письмо могло попасть в спам (доходит до нескольких минут).",
+    err_creds: "Неверный email или пароль. Нет аккаунта? Нажмите «Создать аккаунт».",
+    err_unconfirmed: "Email не подтверждён — найдите письмо (проверьте спам) и перейдите по ссылке.",
+    err_rate: "Слишком много попыток — подождите минуту и повторите.",
 
     c_quest: "Квест",
     c_trader: "Торговец",
@@ -181,7 +184,10 @@ const DICT = {
     or: "or",
     google_btn: "Continue with Google",
     lg_need: "Enter email and password",
-    lg_confirm: "Account created. Check your inbox and confirm your email.",
+    lg_confirm: "Account created. Confirm your email — the message may land in spam (can take a few minutes).",
+    err_creds: "Wrong email or password. No account yet? Use «Create account».",
+    err_unconfirmed: "Email not confirmed — find the message (check spam) and follow the link.",
+    err_rate: "Too many attempts — wait a minute and retry.",
 
     c_quest: "Quest",
     c_trader: "Trader",
@@ -2544,7 +2550,13 @@ async function doPassword(mode) {
       : await sbClient.auth.signInWithPassword({ email, password: pass });
 
   if (res.error) {
-    lgErr.textContent = res.error.message;
+    const m = res.error.message || "";
+
+    if (/Invalid login credentials/i.test(m)) lgErr.textContent = t("err_creds");
+    else if (/Email not confirmed/i.test(m)) lgErr.textContent = t("err_unconfirmed");
+    else if (/rate limit/i.test(m)) lgErr.textContent = t("err_rate");
+    else lgErr.textContent = m;
+
     return;
   }
 

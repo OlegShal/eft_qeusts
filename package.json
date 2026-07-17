@@ -1,0 +1,13 @@
+{
+  "name": "eft-kappa-planner",
+  "private": true,
+  "version": "1.0.0",
+  "description": "EFT Kappa quest planner — static site, tests only",
+  "scripts": {
+    "test": "node tests/smoke.js"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "playwright": "^1.49.0"
+  }
+}

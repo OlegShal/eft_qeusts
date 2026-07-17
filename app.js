@@ -112,6 +112,8 @@ const DICT = {
     nextup: "▶ Дальше",
     resetfilters: "Сбросить фильтры",
     fit_t: "Весь граф",
+    objectives: "Цели",
+    wiki: "Открыть на вики",
   },
 
   en: {
@@ -205,6 +207,8 @@ const DICT = {
     nextup: "▶ Next up",
     resetfilters: "Reset filters",
     fit_t: "Fit whole graph",
+    objectives: "Objectives",
+    wiki: "Open wiki",
   },
 };
 
@@ -930,6 +934,22 @@ function drawAfterDone() {
   else draw();
 }
 
+const OBJ_ICON = {
+  kill: "⌖",
+  find: "◈",
+  collect: "◈",
+  place: "◎",
+  plant: "◎",
+  mark: "✦",
+  key: "🗝",
+  visit: "➤",
+  extract: "⇱",
+  build: "⚙",
+  skill: "↑",
+  experience: "↑",
+  reputation: "↑",
+};
+
 function showInfo(id) {
   const d = byId.get(id);
 
@@ -962,6 +982,26 @@ function showInfo(id) {
   html += `<div class="row"><span>${t("i_chxp")}</span><span class="g">${sx(chainXP + d.exp).toLocaleString("ru-RU")} XP</span></div>`;
 
   html += `<div class="row"><span>${t("i_unl")}</span><span>${(childMap.get(id) || []).length}</span></div>`;
+
+  // цели квеста — короткие таргеты, без лора
+  if (d.objectives && d.objectives.length) {
+    html += `<div class="obj-title">${t("objectives")}</div><div class="objs">`;
+
+    d.objectives.forEach((o) => {
+      html +=
+        `<div class="obj${o.optional ? " obj-opt" : ""}"><span class="obj-ic">${OBJ_ICON[o.type] || "•"}</span>` +
+        `<span class="obj-tx">${LANG === "ru" && o.ru ? o.ru : o.en}</span>` +
+        (o.count ? `<span class="obj-n">×${o.count}</span>` : "") +
+        (o.fir ? `<span class="obj-fir">FiR</span>` : "") +
+        `</div>`;
+    });
+
+    html += `</div>`;
+  }
+
+  if (d.wiki) {
+    html += `<a class="wiki-link" href="${d.wiki}" target="_blank" rel="noopener">📖 ${t("wiki")} ↗</a>`;
+  }
 
   const pList = orderListHTML(id);
 

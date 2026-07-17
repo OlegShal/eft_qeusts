@@ -118,6 +118,9 @@ const DICT = {
     wiki: "Открыть на вики",
     rs_items: "Нужны предметы",
     rs_goals: "Цели на карте",
+    undo_btn: "↩ Отменить",
+    toast_done: "Готово",
+    toast_undone: "Снято",
   },
 
   en: {
@@ -217,6 +220,9 @@ const DICT = {
     wiki: "Open wiki",
     rs_items: "Items needed",
     rs_goals: "Objectives here",
+    undo_btn: "↩ Undo",
+    toast_done: "Done",
+    toast_undone: "Unmarked",
   },
 };
 
@@ -504,8 +510,28 @@ try {
   if (ml) myLevel = +ml;
 } catch (e) {}
 
+// отметка каскадная (закрывает пререквизиты / снимает потомков) —
+// одно случайное касание меняет много квестов, поэтому даём «Отменить»
+let undoSnap = null,
+  undoTimer = null;
+
+function showToast(msg) {
+  const el = document.getElementById("toast");
+  document.getElementById("toastMsg").textContent = msg;
+  el.style.display = "flex";
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => {
+    el.style.display = "none";
+    undoSnap = null;
+  }, 5000);
+}
+
 function toggleDone(id) {
-  if (done.has(id)) {
+  undoSnap = new Set(done);
+
+  const marking = !done.has(id);
+
+  if (!marking) {
     done.delete(id);
     descendants(id).forEach((x) => done.delete(x));
   } else {
@@ -514,6 +540,11 @@ function toggleDone(id) {
   }
 
   persist();
+
+  const extra = Math.abs(done.size - undoSnap.size) - 1;
+  showToast(
+    `${marking ? t("toast_done") : t("toast_undone")}: ${dn(byId.get(id))}${extra > 0 ? ` (+${extra})` : ""}`,
+  );
 }
 
 function available(d) {
@@ -1943,6 +1974,20 @@ document.getElementById("zout").onclick = () => {
   k = clampK(k / 1.3);
   userAdjustedView = true;
   apply();
+};
+
+document.getElementById("toastUndo").onclick = () => {
+  if (!undoSnap) return;
+
+  done = new Set(undoSnap);
+  undoSnap = null;
+  clearTimeout(undoTimer);
+  document.getElementById("toast").style.display = "none";
+
+  persist();
+  updateStats();
+  draw();
+  if (pinned) showInfo(pinned);
 };
 
 document.getElementById("togglePanel").onclick = () => document.body.classList.add("panel-open");

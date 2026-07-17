@@ -90,9 +90,11 @@ const DICT = {
     i_ch: "Всего в цепочке",
     i_chxp: "Экспа всей цепочки",
     i_unl: "Открывает далее",
-    filters: "☰ Фильтры",
-    hdr_hide: "▲",
-    hdr_show: "▼",
+    filters: "☰ Меню",
+    ps_search: "Поиск",
+    ps_mode: "Версия и охват",
+    ps_tools: "Уровень · сезон · тема",
+    ps_misc: "Язык и аккаунт",
     done: "Готово ✓",
     undone: "↩ Отменить",
     events: "Ивенты",
@@ -114,6 +116,19 @@ const DICT = {
     fit_t: "Весь граф",
     objectives: "Цели",
     wiki: "Открыть на вики",
+    rs_items: "Нужны предметы",
+    rs_goals: "Цели на карте",
+    undo_btn: "↩ Отменить",
+    toast_done: "Готово",
+    toast_undone: "Снято",
+    lvl_next: "на {l}-м: +{n} кв.",
+    prof_season: "❄ Сезон",
+    prof_t: "Профиль прогресса",
+    rt_updated: "⇅ Обновлено с другого устройства",
+    path_title: "Оптимальный путь",
+    path_sub: "топ-15 по экспе",
+    path_steps: "шагов",
+    path_hint: "порядок с учётом разблокировок",
   },
 
   en: {
@@ -185,9 +200,11 @@ const DICT = {
     i_ch: "Chain total",
     i_chxp: "Chain XP",
     i_unl: "Unlocks next",
-    filters: "☰ Filters",
-    hdr_hide: "▲",
-    hdr_show: "▼",
+    filters: "☰ Menu",
+    ps_search: "Search",
+    ps_mode: "Version & scope",
+    ps_tools: "Level · season · theme",
+    ps_misc: "Language & account",
     done: "Done ✓",
     undone: "↩ Undo",
     events: "Events",
@@ -209,6 +226,19 @@ const DICT = {
     fit_t: "Fit whole graph",
     objectives: "Objectives",
     wiki: "Open wiki",
+    rs_items: "Items needed",
+    rs_goals: "Objectives here",
+    undo_btn: "↩ Undo",
+    toast_done: "Done",
+    toast_undone: "Unmarked",
+    lvl_next: "at {l}: +{n} q.",
+    prof_season: "❄ Season",
+    prof_t: "Progress profile",
+    rt_updated: "⇅ Updated from another device",
+    path_title: "Optimal path",
+    path_sub: "top-15 by XP",
+    path_steps: "steps",
+    path_hint: "order accounts for unlocks",
   },
 };
 
@@ -478,26 +508,81 @@ try {
 } catch (e) {}
 const sx = (v) => Math.round(v * (seasonal ? 1.25 : 1));
 
-let done = new Set();
+// ---- профили прогресса: PVP / PVE / Сезон ----
+// У каждого слота свои done и уровень; PVP живёт в легаси-ключах,
+// чтобы существующий прогресс пользователей стал PVP-профилем без миграции.
+
+const PROFILES = ["pvp", "pve", "season"];
+
+let activeProfile = "pvp";
 
 try {
-  const v = localStorage.getItem("eft_kappa_done");
-  if (v) JSON.parse(v).forEach((id) => done.add(id));
+  const p = localStorage.getItem("eft_kappa_profile");
+  if (PROFILES.includes(p)) activeProfile = p;
 } catch (e) {}
 
+const doneKey = (p = activeProfile) => (p === "pvp" ? "eft_kappa_done" : "eft_kappa_done_" + p);
+const levelKey = (p = activeProfile) => (p === "pvp" ? "eft_kappa_level" : "eft_kappa_level_" + p);
+
+function readSlot(p) {
+  let d = [],
+    lvl = 0;
+  try {
+    d = JSON.parse(localStorage.getItem(doneKey(p)) || "[]");
+  } catch (e) {}
+  try {
+    lvl = +localStorage.getItem(levelKey(p)) || 0;
+  } catch (e) {}
+  return { done: d, mylevel: lvl };
+}
+
+function writeSlot(p, slot) {
+  try {
+    localStorage.setItem(doneKey(p), JSON.stringify(slot.done || []));
+    localStorage.setItem(levelKey(p), slot.mylevel || 0);
+  } catch (e) {}
+}
+
+let done = new Set();
+
+function loadProfileLocal() {
+  const s = readSlot(activeProfile);
+  done = new Set(s.done);
+  myLevel = s.mylevel;
+}
+
+loadProfileLocal();
+
 const saveLocal = () => {
-  localStorage.setItem("eft_kappa_done", JSON.stringify([...done]));
+  localStorage.setItem(doneKey(), JSON.stringify([...done]));
 };
 
 let persist = saveLocal;
 
-try {
-  const ml = localStorage.getItem("eft_kappa_level");
-  if (ml) myLevel = +ml;
-} catch (e) {}
+// отметка каскадная (закрывает пререквизиты / снимает потомков) —
+// одно случайное касание меняет много квестов, поэтому даём «Отменить»
+let undoSnap = null,
+  undoTimer = null;
+
+function showToast(msg, withUndo = true) {
+  const el = document.getElementById("toast");
+  document.getElementById("toastMsg").textContent = msg;
+  document.getElementById("toastUndo").style.display = withUndo ? "" : "none";
+  if (!withUndo) undoSnap = null;
+  el.style.display = "flex";
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(() => {
+    el.style.display = "none";
+    undoSnap = null;
+  }, 5000);
+}
 
 function toggleDone(id) {
-  if (done.has(id)) {
+  undoSnap = new Set(done);
+
+  const marking = !done.has(id);
+
+  if (!marking) {
     done.delete(id);
     descendants(id).forEach((x) => done.delete(x));
   } else {
@@ -506,6 +591,11 @@ function toggleDone(id) {
   }
 
   persist();
+
+  const extra = Math.abs(done.size - undoSnap.size) - 1;
+  showToast(
+    `${marking ? t("toast_done") : t("toast_undone")}: ${dn(byId.get(id))}${extra > 0 ? ` (+${extra})` : ""}`,
+  );
 }
 
 function available(d) {
@@ -1285,6 +1375,135 @@ const plannerEl = document.getElementById("planner");
 
 let activeMap = null;
 
+// Сводка по карте: агрегированные предметы и цели из ДОСТУПНЫХ квестов,
+// без привязки к конкретному квесту. Одинаковые таргеты суммируются.
+const ITEM_OBJ_TYPES = new Set(["find", "collect", "key"]);
+
+function raidSummaryHTML(quests) {
+  const items = new Map(),
+    goals = new Map();
+
+  quests
+    .filter((q) => available(q) && q.objectives)
+    .forEach((q) => {
+      q.objectives.forEach((o) => {
+        if (o.optional) return;
+
+        const bucket = ITEM_OBJ_TYPES.has(o.type) ? items : goals;
+        const txt = LANG === "ru" && o.ru ? o.ru : o.en;
+        const key = txt + (o.fir ? "|fir" : "");
+
+        const cur = bucket.get(key) || { txt, type: o.type, fir: !!o.fir, count: 0 };
+        cur.count += o.count || 1;
+        bucket.set(key, cur);
+      });
+    });
+
+  if (!items.size && !goals.size) return "";
+
+  const rows = (m) =>
+    [...m.values()]
+      .map(
+        (v) =>
+          `<div class="obj"><span class="obj-ic">${OBJ_ICON[v.type] || "•"}</span>` +
+          `<span class="obj-tx">${v.txt}</span>` +
+          (v.count > 1 ? `<span class="obj-n">×${v.count}</span>` : "") +
+          (v.fir ? `<span class="obj-fir">FiR</span>` : "") +
+          `</div>`,
+      )
+      .join("");
+
+  let h = `<div class="raid-summary">`;
+
+  if (items.size) h += `<div class="obj-title">◈ ${t("rs_items")}</div><div class="objs">${rows(items)}</div>`;
+  if (goals.size) h += `<div class="obj-title">⌖ ${t("rs_goals")}</div><div class="objs">${rows(goals)}</div>`;
+
+  h += `</div>`;
+  return h;
+}
+
+// «Оптимальный путь»: жадный план по XP. На каждом шаге берём доступный
+// квест с максимальным score = свой XP + 0.4 × XP квестов, которые он
+// разблокирует непосредственно. Уровень считаем фиксированным, ивенты
+// не участвуют; при включённом режиме Каппа — только обязательные.
+function xpPathPlan(maxSteps = 15) {
+  const sim = new Set(done);
+  const plan = [];
+  let total = 0;
+
+  const lvlOk = (d) => myLevel === 0 || d.minLevel <= myLevel;
+  const eligible = (d) => !isEvent(d) && lvlOk(d) && (!scopeKappa || isReq(d));
+
+  for (let i = 0; i < maxSteps; i++) {
+    let best = null,
+      bestScore = -1;
+
+    DATA.forEach((d) => {
+      if (sim.has(d.id) || !eligible(d) || !d.requires.every((r) => sim.has(r))) return;
+
+      const unlockXP = (childMap.get(d.id) || []).reduce((s, c) => {
+        const cd = byId.get(c);
+        if (sim.has(c) || !eligible(cd)) return s;
+        return cd.requires.every((r) => sim.has(r) || r === d.id) ? s + sx(cd.exp) : s;
+      }, 0);
+
+      const score = sx(d.exp) + 0.4 * unlockXP;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = d;
+      }
+    });
+
+    if (!best) break;
+
+    sim.add(best.id);
+    plan.push(best);
+    total += sx(best.exp);
+  }
+
+  return { plan, total };
+}
+
+function renderPathContent() {
+  const { plan, total } = xpPathPlan();
+
+  let html = `<div class="active-map-panel">
+
+<div class="am-header">
+
+  <h1>⚡ ${t("path_title")}</h1>
+
+  <div class="am-sub">${plan.length} ${t("path_steps")} · <b style="color:var(--gold)">${total.toLocaleString("ru-RU")} XP</b> · ${t("path_hint")}</div>
+
+</div>
+
+<div class="am-list">`;
+
+  plan.forEach((q, i) => {
+    html += `<div class="am-quest" data-id="${q.id}">
+
+  <div class="path-num">${i + 1}</div>
+
+  <input type="checkbox" data-act="done" data-id="${q.id}">
+
+  <div class="amq-info">
+
+    <div class="amq-name">${dn(q)}</div>
+
+    <div class="amq-meta"><span style="color:${TC[q.trader]}">${t(q.trader)}</span>${q.map ? " · " + t(q.map) : ""} · ${sx(q.exp).toLocaleString("ru-RU")} XP</div>
+
+  </div>
+
+</div>`;
+  });
+
+  if (!plan.length) html += `<div class="planner-empty">${t("listempty")}</div>`;
+
+  html += `</div></div>`;
+  return html;
+}
+
 function renderPlanner() {
   const avail = DATA.filter((d) => visible(d) && !done.has(d.id));
 
@@ -1327,6 +1546,14 @@ function renderPlanner() {
 
   html += `<div class="side-title">${t("v_planner")}</div>`;
 
+  html += `<div class="map-btn path-btn ${activeMap === "__path" ? "active" : ""}" data-map="__path">
+
+<div class="m-nm">⚡ ${t("path_title")}</div>
+
+<div class="m-st">${t("path_sub")}</div>
+
+  </div>`;
+
   if (global.length > 0) {
     const isAct = activeMap === "global" ? "active" : "";
 
@@ -1361,7 +1588,9 @@ function renderPlanner() {
 
   html += `<div class="planner-content">`;
 
-  if (activeMap === "global" && global.length > 0) {
+  if (activeMap === "__path") {
+    html += renderPathContent();
+  } else if (activeMap === "global" && global.length > 0) {
     html += `<div class="active-map-panel">
 
 <div class="am-header">
@@ -1389,6 +1618,8 @@ function renderPlanner() {
 
 </div>`;
     });
+
+    html += raidSummaryHTML(global);
 
     html += `</div></div>`;
   } else if (activeMap && maps[activeMap]) {
@@ -1421,6 +1652,8 @@ function renderPlanner() {
 
 </div>`;
     });
+
+    html += raidSummaryHTML(m.quests);
 
     html += `</div></div>`;
   }
@@ -1824,11 +2057,29 @@ document.addEventListener("click", (e) => {
     };
 });
 
+// мотиватор: ближайший уровень, открывающий новые квесты
+function updateLvlNext() {
+  const el = document.getElementById("lvlnext");
+  const lv = myLevel || 0;
+  const future = DATA.filter((d) => d.minLevel > lv);
+
+  if (!future.length) {
+    el.textContent = "";
+    return;
+  }
+
+  const L = Math.min(...future.map((d) => d.minLevel));
+  const N = future.filter((d) => d.minLevel === L).length;
+
+  el.textContent = t("lvl_next").replace("{l}", L).replace("{n}", N);
+}
+
 function setLevel(v) {
   myLevel = Math.max(0, Math.min(79, Math.round(+v) || 0));
   const inp = document.getElementById("mylevel");
   if (inp) inp.value = myLevel;
-  localStorage.setItem("eft_kappa_level", myLevel);
+  localStorage.setItem(levelKey(), myLevel);
+  updateLvlNext();
   draw();
   persistCloudSoon();
 }
@@ -1836,6 +2087,31 @@ document.getElementById("mylevel").value = myLevel;
 document.getElementById("lvlminus").onclick = () => setLevel(myLevel - 1);
 document.getElementById("lvlplus").onclick = () => setLevel(myLevel + 1);
 document.getElementById("mylevel").addEventListener("change", (e) => setLevel(e.target.value));
+
+function switchProfile(p) {
+  if (p === activeProfile || !PROFILES.includes(p)) return;
+
+  activeProfile = p;
+  localStorage.setItem("eft_kappa_profile", p);
+
+  loadProfileLocal();
+  document.getElementById("mylevel").value = myLevel;
+  document.querySelectorAll("#profsw button").forEach((b) => b.classList.toggle("on", b.dataset.prof === p));
+
+  updateStats();
+  updateLvlNext();
+  draw();
+  if (pinned) showInfo(pinned);
+
+  if (sessionUser) loadFromCloud();
+}
+
+document.getElementById("profsw").addEventListener("click", (e) => {
+  const b = e.target.closest("button");
+  if (b) switchProfile(b.dataset.prof);
+});
+
+document.querySelectorAll("#profsw button").forEach((b) => b.classList.toggle("on", b.dataset.prof === activeProfile));
 
 function applyTheme(th) {
   if (th) document.documentElement.setAttribute("data-theme", th);
@@ -1886,23 +2162,54 @@ document.getElementById("zout").onclick = () => {
   apply();
 };
 
+document.getElementById("toastUndo").onclick = () => {
+  if (!undoSnap) return;
+
+  done = new Set(undoSnap);
+  undoSnap = null;
+  clearTimeout(undoTimer);
+  document.getElementById("toast").style.display = "none";
+
+  persist();
+  updateStats();
+  draw();
+  if (pinned) showInfo(pinned);
+};
+
 document.getElementById("togglePanel").onclick = () => document.body.classList.add("panel-open");
 
 document.getElementById("panelClose").onclick = () => document.body.classList.remove("panel-open");
 
-const hdrToggle = document.getElementById("hdrToggle");
+// ---- мобильная раскладка ----
+// Шапка на телефоне — всегда одна компактная строка; всё остальное
+// физически переезжает в полноэкранное меню (#panel) и обратно на десктопе.
 
-function setHdrMin(min) {
-  document.body.classList.toggle("hdr-min", min);
-  hdrToggle.dataset.t = min ? "hdr_show" : "hdr_hide";
-  hdrToggle.textContent = t(hdrToggle.dataset.t);
-  hdrToggle.title = min ? "Развернуть / Expand" : "Свернуть / Collapse";
-  localStorage.setItem("eft_kappa_hdrmin", min ? "1" : "0");
+const mobileMoves = [
+  { el: document.querySelector(".ctrl"), to: "ps-search" },
+  { el: document.getElementById("switch"), to: "ps-mode" },
+  { el: document.getElementById("profsw"), to: "ps-mode" },
+  { el: document.getElementById("kappaBtn"), to: "ps-mode" },
+  { el: document.querySelector(".hdr-tools"), to: "ps-tools" },
+  { el: document.getElementById("langsw"), to: "ps-misc" },
+  { el: document.getElementById("auth-ui"), to: "ps-misc" },
+].map((m) => {
+  // маркер запоминает исходное место в шапке для точного возврата
+  m.marker = document.createComment("home");
+  m.el.parentNode.insertBefore(m.marker, m.el);
+  return m;
+});
+
+function relocateControls(mobile) {
+  mobileMoves.forEach((m) => {
+    if (mobile) document.getElementById(m.to).appendChild(m.el);
+    else m.marker.parentNode.insertBefore(m.el, m.marker.nextSibling);
+  });
 }
 
-hdrToggle.onclick = () => setHdrMin(!document.body.classList.contains("hdr-min"));
+const mobileMQ = matchMedia("(max-width: 820px)");
 
-setHdrMin(localStorage.getItem("eft_kappa_hdrmin") === "1");
+relocateControls(mobileMQ.matches);
+mobileMQ.addEventListener("change", (e) => relocateControls(e.matches));
 
 const matchName = (d, q) => d.name.toLowerCase().includes(q) || (d.nameRu || "").toLowerCase().includes(q);
 
@@ -1922,31 +2229,91 @@ search.addEventListener("input", () => {
   edgeEls.forEach((p) => p.classList.remove("hl"));
 });
 
+search.addEventListener("input", () => renderSug(search.value.trim().toLowerCase()));
+
+function jumpToQuest(hit) {
+  if (!hit) return;
+
+  // на мобиле поиск живёт в меню — при переходе к квесту закрываем его
+  document.body.classList.remove("panel-open");
+  hideSug();
+
+  if (!nodeEls.has(hit.id)) {
+    // узел скрыт фильтрами — хотя бы показываем карточку
+    pinned = hit.id;
+    showInfo(hit.id);
+    return;
+  }
+
+  if (viewMode !== "graph") {
+    document.querySelector('#viewsw button[data-view="graph"]').click();
+  }
+
+  nodeEls.get(hit.id).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+  const coordG = nodeEls
+    .get(hit.id)
+    .getAttribute("transform")
+    .match(/translate\(([-\d.]+),([-\d.]+)\)/);
+
+  const nx = +coordG[1],
+    ny = +coordG[2];
+  const r = stage.getBoundingClientRect();
+  tx = r.width / 2 - (nx + NODE_W / 2) * k;
+  ty = r.height / 2 - (ny + NODE_H / 2) * k;
+  apply();
+}
+
 search.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   const q = search.value.trim().toLowerCase();
-  const hit = DATA.find((d) => matchName(d, q) && nodeEls.has(d.id));
-
-  if (hit && nodeEls.has(hit.id)) {
-    if (viewMode !== "graph") {
-      document.querySelector('#viewsw button[data-view="graph"]').click();
-    }
-
-    nodeEls.get(hit.id).dispatchEvent(new MouseEvent("click", { bubbles: true }));
-
-    const coordG = nodeEls
-      .get(hit.id)
-      .getAttribute("transform")
-      .match(/translate\(([-\d.]+),([-\d.]+)\)/);
-
-    const nx = +coordG[1],
-      ny = +coordG[2];
-    const r = stage.getBoundingClientRect();
-    tx = r.width / 2 - (nx + NODE_W / 2) * k;
-    ty = r.height / 2 - (ny + NODE_H / 2) * k;
-    apply();
-  }
+  jumpToQuest(DATA.find((d) => matchName(d, q) && nodeEls.has(d.id)) || DATA.find((d) => matchName(d, q)));
 });
+
+// живые подсказки под полем поиска
+const sugEl = document.createElement("div");
+sugEl.id = "searchSug";
+search.parentElement.appendChild(sugEl);
+
+function hideSug() {
+  sugEl.style.display = "none";
+  sugEl.innerHTML = "";
+}
+
+function renderSug(q) {
+  if (!q) {
+    hideSug();
+    return;
+  }
+
+  const hits = DATA.filter((d) => matchName(d, q)).slice(0, 6);
+
+  if (!hits.length) {
+    hideSug();
+    return;
+  }
+
+  sugEl.innerHTML = hits
+    .map(
+      (d) =>
+        `<div class="sug" data-id="${d.id}"><span class="sug-dot" style="background:${TC[d.trader] || "#888"}"></span>` +
+        `<span class="sug-nm">${dn(d)}</span><span class="sug-meta">${t(d.trader)}${d.minLevel ? " · " + t("c_lvl") + " " + d.minLevel : ""}</span></div>`,
+    )
+    .join("");
+  sugEl.style.display = "block";
+}
+
+sugEl.addEventListener("pointerdown", (e) => {
+  const row = e.target.closest(".sug");
+  if (!row) return;
+  e.preventDefault();
+  search.value = "";
+  searchQ = "";
+  nodeEls.forEach((g) => g.classList.remove("dim"));
+  jumpToQuest(byId.get(row.dataset.id));
+});
+
+search.addEventListener("blur", () => setTimeout(hideSug, 150));
 
 // ---- SUPABASE CLOUD SYNC ----
 
@@ -1975,10 +2342,75 @@ if (SUPABASE_URL && SUPABASE_KEY && window.supabase) {
     if (sessionUser && !cloudLoaded) {
       cloudLoaded = true;
       loadFromCloud();
+      subscribeRealtime();
     } else if (event === "SIGNED_OUT") {
       cloudLoaded = false;
+      unsubscribeRealtime();
     }
   });
+}
+
+// ---- realtime: живые обновления с других устройств ----
+// Требует включённого Realtime для таблицы profiles
+// (см. supabase/profiles-migration.sql); без него просто молчит.
+
+let rtChannel = null;
+
+function applyCloudRow(row) {
+  const full = row.profiles && typeof row.profiles === "object";
+
+  // неактивные слоты обновляем тихо
+  if (full) {
+    PROFILES.forEach((p) => {
+      if (p !== activeProfile && row.profiles[p]) writeSlot(p, row.profiles[p]);
+    });
+  }
+
+  const slot = full ? row.profiles[activeProfile] || {} : activeProfile === "pvp" ? row : null;
+  if (!slot) return;
+
+  const nd = slot.done || [];
+  const nl = slot.mylevel ?? 0;
+  const same = nd.length === done.size && nl === myLevel && nd.every((id) => done.has(id));
+
+  if (same) return; // эхо собственной записи
+
+  done = new Set(nd);
+  myLevel = nl;
+
+  document.getElementById("mylevel").value = myLevel;
+  saveLocal();
+  localStorage.setItem(levelKey(), myLevel);
+
+  updateStats();
+  updateLvlNext();
+  draw();
+  if (pinned) showInfo(pinned);
+
+  setSyncState("ok");
+  showToast(t("rt_updated"), false);
+}
+
+function subscribeRealtime() {
+  if (!sbClient || !sessionUser || rtChannel) return;
+
+  rtChannel = sbClient
+    .channel("profile-rt")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "profiles", filter: "id=eq." + sessionUser.id },
+      (payload) => {
+        if (payload.new && !syncBusy) applyCloudRow(payload.new);
+      },
+    )
+    .subscribe();
+}
+
+function unsubscribeRealtime() {
+  if (rtChannel && sbClient) {
+    sbClient.removeChannel(rtChannel);
+    rtChannel = null;
+  }
 }
 
 function applyAuthUI() {
@@ -2078,6 +2510,18 @@ document.getElementById("btnLogout").onclick = () => {
   if (sbClient) sbClient.auth.signOut();
 };
 
+// null — схема облака ещё неизвестна; true — есть jsonb-колонка profiles
+// (все 3 слота синхронизируются); false — легаси-схема (только PVP).
+let cloudHasProfilesCol = null;
+
+function migrationHint() {
+  setSyncState("err");
+  const el = document.getElementById("syncState");
+  if (el)
+    el.title =
+      "Слот " + activeProfile.toUpperCase() + " не синхронизируется: выполните supabase/profiles-migration.sql";
+}
+
 async function loadFromCloud() {
   if (!sbClient || !sessionUser) return;
 
@@ -2090,19 +2534,34 @@ async function loadFromCloud() {
     return;
   }
 
-  const cloudDone = new Set(data?.done || []);
-  const cloudLevel = data?.mylevel ?? 0;
+  if (data) cloudHasProfilesCol = "profiles" in data;
+
+  const full = data ? "profiles" in data : cloudHasProfilesCol === true;
+
+  let slot;
+  if (full) slot = (data?.profiles || {})[activeProfile] || {};
+  else if (activeProfile === "pvp") slot = { done: data?.done, mylevel: data?.mylevel };
+  else {
+    // легаси-схема хранит только PVP — этот слот живёт локально
+    migrationHint();
+    return;
+  }
+
+  const cloudDone = new Set(slot?.done || []);
+  const cloudLevel = slot?.mylevel ?? 0;
 
   const cloudEmpty = cloudDone.size === 0 && cloudLevel === 0;
   const localEmpty = done.size === 0 && myLevel === 0;
   const same = done.size === cloudDone.size && myLevel === cloudLevel && [...done].every((id) => cloudDone.has(id));
 
+  const cloudProfiles = full ? data?.profiles || {} : null;
+
   // Однозначные случаи решаем молча; спрашиваем пользователя только
   // когда локальный и облачный прогресс реально расходятся.
   if (same) setSyncState("ok");
-  else if (cloudEmpty) applySyncChoice("local", cloudDone, cloudLevel);
-  else if (localEmpty) applySyncChoice("cloud", cloudDone, cloudLevel);
-  else openSyncModal(cloudDone, cloudLevel);
+  else if (cloudEmpty) applySyncChoice("local", cloudDone, cloudLevel, cloudProfiles);
+  else if (localEmpty) applySyncChoice("cloud", cloudDone, cloudLevel, cloudProfiles);
+  else openSyncModal(cloudDone, cloudLevel, cloudProfiles);
 }
 
 // ---- конфликт прогресса: выбор пользователя ----
@@ -2115,19 +2574,19 @@ function progressMeta(doneSet, lvl) {
   return `${doneSet.size} ${t("q")} · ${pct}% ${t("sync_kappa")} · ${t("mylevel_short")} ${lvl}`;
 }
 
-function openSyncModal(cloudDone, cloudLevel) {
+function openSyncModal(cloudDone, cloudLevel, cloudProfiles) {
   document.getElementById("syncLocalMeta").textContent = progressMeta(done, myLevel);
   document.getElementById("syncCloudMeta").textContent = progressMeta(cloudDone, cloudLevel);
 
   const modal = document.getElementById("syncModal");
   modal.style.display = "flex";
 
-  document.getElementById("syncKeepLocal").onclick = () => applySyncChoice("local", cloudDone, cloudLevel);
-  document.getElementById("syncKeepCloud").onclick = () => applySyncChoice("cloud", cloudDone, cloudLevel);
-  document.getElementById("syncMerge").onclick = () => applySyncChoice("merge", cloudDone, cloudLevel);
+  document.getElementById("syncKeepLocal").onclick = () => applySyncChoice("local", cloudDone, cloudLevel, cloudProfiles);
+  document.getElementById("syncKeepCloud").onclick = () => applySyncChoice("cloud", cloudDone, cloudLevel, cloudProfiles);
+  document.getElementById("syncMerge").onclick = () => applySyncChoice("merge", cloudDone, cloudLevel, cloudProfiles);
 }
 
-function applySyncChoice(choice, cloudDone, cloudLevel) {
+function applySyncChoice(choice, cloudDone, cloudLevel, cloudProfiles) {
   document.getElementById("syncModal").style.display = "none";
 
   if (choice === "cloud") {
@@ -2139,14 +2598,36 @@ function applySyncChoice(choice, cloudDone, cloudLevel) {
   }
   // choice === "local": локальные данные остаются как есть
 
+  // выбор применяется и к неактивным слотам (при полной облачной схеме)
+  if (cloudProfiles) {
+    PROFILES.forEach((p) => {
+      if (p === activeProfile) return;
+
+      const local = readSlot(p);
+      const cloud = cloudProfiles[p] || { done: [], mylevel: 0 };
+
+      let out;
+      if (choice === "cloud") out = { done: cloud.done || [], mylevel: cloud.mylevel || 0 };
+      else if (choice === "local") out = local;
+      else
+        out = {
+          done: [...new Set([...(local.done || []), ...(cloud.done || [])])],
+          mylevel: Math.max(local.mylevel || 0, cloud.mylevel || 0),
+        };
+
+      writeSlot(p, out);
+    });
+  }
+
   document.getElementById("mylevel").value = myLevel;
-  localStorage.setItem("eft_kappa_level", myLevel);
+  localStorage.setItem(levelKey(), myLevel);
   saveLocal();
 
   if (choice === "cloud") setSyncState("ok");
   else persistCloudSoon();
 
   updateStats();
+  updateLvlNext();
   draw();
   if (pinned) showInfo(pinned);
 }
@@ -2187,18 +2668,46 @@ async function persistCloudNow() {
     return;
   }
 
+  if (cloudHasProfilesCol === false && activeProfile !== "pvp") {
+    // легаси-схема умеет хранить только PVP
+    migrationHint();
+    return;
+  }
+
   syncBusy = true;
   setSyncState("busy");
+
+  // легаси-поля done/mylevel всегда несут PVP-слот (обратная совместимость)
+  const pvp = activeProfile === "pvp" ? { done: [...done], mylevel: myLevel } : readSlot("pvp");
+  const payload = { id: sessionUser.id, done: pvp.done, mylevel: pvp.mylevel };
+
+  const withProfiles = cloudHasProfilesCol !== false;
+
+  if (withProfiles) {
+    payload.profiles = {};
+    PROFILES.forEach((p) => {
+      payload.profiles[p] = p === activeProfile ? { done: [...done], mylevel: myLevel } : readSlot(p);
+    });
+  }
 
   let error = null;
 
   try {
-    ({ error } = await sbClient.from("profiles").upsert({ id: sessionUser.id, done: [...done], mylevel: myLevel }));
+    ({ error } = await sbClient.from("profiles").upsert(payload));
   } catch (e) {
     error = e;
   }
 
   syncBusy = false;
+
+  // колонки profiles нет — запоминаем и повторяем в легаси-формате
+  if (error && withProfiles && cloudHasProfilesCol === null && /profiles/i.test(error.message || "")) {
+    cloudHasProfilesCol = false;
+    persistCloudNow();
+    return;
+  }
+
+  if (!error && withProfiles) cloudHasProfilesCol = true;
 
   if (syncDirty) {
     syncDirty = false;
@@ -2241,6 +2750,7 @@ function applyLang() {
   bLabel.event = LANG === "ru" ? "ИВЕНТ" : "EVENT";
 
   updateStats();
+  updateLvlNext();
   draw();
 }
 

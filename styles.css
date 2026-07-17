@@ -387,6 +387,43 @@ header {
   display: none;
 }
 
+/* undo-тост */
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(70px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 95;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: min(92vw, 440px);
+  background: var(--panel2);
+  border: 1px solid var(--line2);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 13px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.55);
+}
+
+#toastMsg {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#toastUndo {
+  flex: none;
+  background: none;
+  border: 0;
+  color: var(--gold);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+
 /* sync-conflict modal */
 
 .sync-card {
@@ -548,11 +585,69 @@ header {
   color: var(--text);
 }
 
+#profsw button.on {
+  background: var(--goldsoft);
+  color: #fff;
+}
+
 .ctrl {
   display: flex;
   align-items: center;
   gap: 7px;
   font-size: 12px;
+  position: relative;
+}
+
+#searchSug {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  min-width: 240px;
+  z-index: 80;
+  background: var(--panel);
+  border: 1px solid var(--line2);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.sug {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.sug:hover {
+  background: var(--panel2);
+}
+
+.sug + .sug {
+  border-top: 1px solid var(--bg2);
+}
+
+.sug-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.sug-nm {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sug-meta {
+  flex: none;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 input[type="search"] {
@@ -730,6 +825,16 @@ input[type="search"] {
   color: var(--muted);
   font-weight: 600;
   white-space: nowrap;
+}
+
+#lvlnext {
+  font-size: 10.5px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+#lvlnext:empty {
+  display: none;
 }
 
 .hdr-tools .lvl-step,
@@ -1551,6 +1656,48 @@ body.plannerview #planner {
   background: color-mix(in srgb, var(--gold) 8%, transparent);
 }
 
+/* оптимальный путь по XP */
+
+.path-btn {
+  border-color: var(--goldsoft);
+}
+
+.path-btn .m-nm {
+  color: var(--gold);
+}
+
+.path-num {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--goldsoft);
+  color: var(--gold2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* сводка по карте в планировщике рейдов */
+
+.raid-summary {
+  margin-top: 10px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--line2);
+}
+
+.raid-summary .obj-title {
+  margin: 14px 0 6px;
+  font-size: 11px;
+}
+
+.raid-summary .obj {
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
 .todo {
   margin-top: 12px;
   border: 1px solid var(--line);
@@ -1662,6 +1809,11 @@ body.plannerview #minimap {
   display: none;
 }
 
+/* секции мобильного меню: на десктопе пустые и скрыты */
+.p-sec {
+  display: none;
+}
+
 /* MOBILE RESPONSIVE */
 
 @media (max-width: 820px) {
@@ -1688,43 +1840,8 @@ body.plannerview #minimap {
     display: none;
   }
 
-  .switch {
-    flex: 1 1 100%;
-  }
-
-  .switch button {
-    flex: 1;
-    padding: 10px 6px;
-    font-size: 13px;
-  }
-
-  .auth-ui {
-    flex: 1 1 100%;
-    order: 5;
-    justify-content: space-between;
-    margin: 4px 0;
-  }
-
-  .langsw {
-    flex: 0 0 auto;
-    order: 6;
-  }
-
-  .langsw button {
-    padding: 10px 15px;
-    font-size: 14px;
-  }
-
-  .ctrl {
-    order: 10;
-    flex: 1 1 100%;
-  }
-
-  input[type="search"] {
-    width: 100%;
-    padding: 11px 12px;
-    font-size: 14px;
-  }
+  /* шапка — всегда одна компактная строка: ☰ Меню | вид | ▶ Дальше.
+     Остальные элементы JS переносит в секции #panel (см. relocateControls) */
 
   #togglePanel {
     order: -3;
@@ -1739,15 +1856,6 @@ body.plannerview #minimap {
     white-space: nowrap;
   }
 
-  #hdrToggle {
-    order: -1;
-    flex: 0 0 auto;
-    min-width: 44px;
-    padding: 11px 10px;
-    font-size: 13px;
-    line-height: 1;
-  }
-
   .switch.vsw {
     flex: 1 1 auto;
     order: -2;
@@ -1755,54 +1863,89 @@ body.plannerview #minimap {
   }
 
   .switch.vsw button {
+    flex: 1;
     padding: 10px 4px;
     font-size: 12px;
   }
 
-  .kbtn {
-    flex: 1 1 auto;
-    padding: 10px 12px;
+  #nextBtn {
+    order: -1;
+    flex: 0 1 auto;
+    padding: 10px 10px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  input[type="search"] {
+    width: 100%;
+    padding: 11px 12px;
     font-size: 14px;
-    order: 3;
   }
 
-  .langsw {
-    order: 3;
+  /* секции меню и элементы, переехавшие из шапки */
+
+  .p-sec {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
 
-  .hdr-tools {
-    order: 4;
-    flex: 1 1 100%;
+  #panel .p-sec > * {
+    flex: none;
+    width: 100%;
     min-width: 0;
+    margin: 0;
+    order: 0;
+  }
+
+  #panel .switch button {
+    flex: 1;
+    padding: 11px 6px;
+    font-size: 13px;
+  }
+
+  #panel .kbtn {
+    padding: 11px 12px;
+    font-size: 14px;
+  }
+
+  #panel .hdr-tools {
+    display: flex;
     flex-wrap: wrap;
     white-space: normal;
-    gap: 8px 14px;
+    gap: 10px 14px;
     padding: 2px 0;
   }
 
-  .hdr-tools .theme-dot {
-    width: 30px;
-    height: 30px;
+  #panel .hdr-tools .theme-dot {
+    width: 32px;
+    height: 32px;
   }
 
-  .hdr-tools .theme-sw {
+  #panel .hdr-tools .theme-sw {
     gap: 10px;
     flex-wrap: wrap;
   }
 
-  .season-btn {
-    padding: 9px 12px;
+  #panel .season-btn {
+    padding: 10px 12px;
     font-size: 13px;
   }
 
-  /* collapsed header: only ☰ + view switch + expand button remain */
-  body.hdr-min .switch:not(.vsw),
-  body.hdr-min .kbtn,
-  body.hdr-min .hdr-tools,
-  body.hdr-min .langsw,
-  body.hdr-min .ctrl,
-  body.hdr-min .auth-ui {
-    display: none;
+  #panel .langsw {
+    display: flex;
+  }
+
+  #panel .langsw button {
+    flex: 1;
+    padding: 11px 15px;
+    font-size: 14px;
+  }
+
+  #panel .auth-ui {
+    display: flex;
+    justify-content: space-between;
   }
 
   #list {

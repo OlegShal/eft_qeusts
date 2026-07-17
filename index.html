@@ -34,6 +34,14 @@
           <button data-view="planner" data-t="v_planner">Рейды</button>
         </div>
 
+        <div class="langsw" id="profsw" data-tt="prof_t" title="Профиль прогресса">
+          <button data-prof="pvp" class="on">PVP</button>
+
+          <button data-prof="pve">PVE</button>
+
+          <button data-prof="season" data-t="prof_season">❄ Сезон</button>
+        </div>
+
         <button class="btn kbtn" id="kappaBtn" data-t="kappa">🎯 Каппа</button>
 
         <button class="btn kbtn" id="nextBtn" data-t="nextup" title="Только доступные сейчас, без сделанных">▶ Дальше</button>
@@ -50,6 +58,8 @@
               <input type="number" id="mylevel" min="0" max="79" step="1" value="0" />
               <button type="button" class="lvl-btn" id="lvlplus" aria-label="+1">+</button>
             </div>
+
+            <span id="lvlnext"></span>
           </div>
           <button type="button" id="seasonBtn" class="season-btn" data-t="seasonal" title="+25% XP">Seasonal +25%</button>
           <div class="theme-sw" id="themeSw" title="Тема / Theme">
@@ -84,15 +94,18 @@
           </div>
         </div>
 
-        <button class="btn only-mobile" id="togglePanel" data-t="filters">☰ Фильтры</button>
-
-        <button class="btn only-mobile" id="hdrToggle" data-t="hdr_hide" title="Свернуть / Развернуть">▲</button>
+        <button class="btn only-mobile" id="togglePanel" data-t="filters">☰ Меню</button>
       </header>
 
       <div id="xpbar"><div id="xpbar-fill"></div></div>
 
       <div id="panel">
         <button class="only-mobile" id="panelClose" data-t="done">Готово ✓</button>
+
+        <!-- секции мобильного меню: на телефоне сюда переезжают элементы шапки -->
+        <div class="f-group p-sec" id="ps-search">
+          <div class="f-title" data-t="ps_search">Поиск</div>
+        </div>
 
         <div id="reqstrip"></div>
 
@@ -128,6 +141,18 @@
           </div>
 
           <div id="legend" class="f-group"></div>
+        </div>
+
+        <div class="f-group p-sec" id="ps-mode">
+          <div class="f-title" data-t="ps_mode">Версия и охват</div>
+        </div>
+
+        <div class="f-group p-sec" id="ps-tools">
+          <div class="f-title" data-t="ps_tools">Уровень · сезон · тема</div>
+        </div>
+
+        <div class="f-group p-sec" id="ps-misc">
+          <div class="f-title" data-t="ps_misc">Язык и аккаунт</div>
         </div>
       </div>
 
@@ -206,6 +231,12 @@
           ><span data-t="google_btn">Войти через Google</span>
         </button>
       </div>
+    </div>
+
+    <div id="toast" style="display: none">
+      <span id="toastMsg"></span>
+
+      <button id="toastUndo" data-t="undo_btn">↩ Отменить</button>
     </div>
 
     <div id="syncModal" class="lg-overlay" style="display: none">

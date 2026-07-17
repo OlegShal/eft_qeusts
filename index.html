@@ -1425,31 +1425,82 @@
         }
 
         #togglePanel {
-          flex: 1 1 auto;
+          order: -3;
+          flex: 0 1 auto;
           justify-content: center;
-          padding: 11px 13px;
+          padding: 11px 12px;
           font-size: 14px;
           background: color-mix(in srgb, var(--gold) 13%, transparent);
           border-color: var(--goldsoft);
           color: var(--gold);
           font-weight: 700;
+          white-space: nowrap;
+        }
+
+        #hdrToggle {
+          order: -1;
+          flex: 0 0 auto;
+          min-width: 44px;
+          padding: 11px 10px;
+          font-size: 13px;
+          line-height: 1;
         }
 
         .switch.vsw {
-          flex: 1 1 100%;
-          order: 2;
+          flex: 1 1 auto;
+          order: -2;
+          min-width: 0;
         }
 
         .switch.vsw button {
-          padding: 10px 8px;
-          font-size: 13px;
+          padding: 10px 4px;
+          font-size: 12px;
         }
 
         .kbtn {
-          flex: 0 0 auto;
+          flex: 1 1 auto;
           padding: 10px 12px;
           font-size: 14px;
           order: 3;
+        }
+
+        .langsw {
+          order: 3;
+        }
+
+        .hdr-tools {
+          order: 4;
+          flex: 1 1 100%;
+          min-width: 0;
+          flex-wrap: wrap;
+          white-space: normal;
+          gap: 8px 14px;
+          padding: 2px 0;
+        }
+
+        .hdr-tools .theme-dot {
+          width: 30px;
+          height: 30px;
+        }
+
+        .hdr-tools .theme-sw {
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+
+        .season-btn {
+          padding: 9px 12px;
+          font-size: 13px;
+        }
+
+        /* collapsed header: only ☰ + view switch + expand button remain */
+        body.hdr-min .switch:not(.vsw),
+        body.hdr-min .kbtn,
+        body.hdr-min .hdr-tools,
+        body.hdr-min .langsw,
+        body.hdr-min .ctrl,
+        body.hdr-min .auth-ui {
+          display: none;
         }
 
         #list {
@@ -1641,6 +1692,8 @@
         </div>
 
         <button class="btn only-mobile" id="togglePanel" data-t="filters">☰ Фильтры</button>
+
+        <button class="btn only-mobile" id="hdrToggle" data-t="hdr_hide" title="Свернуть / Развернуть">▲</button>
       </header>
 
       <div id="panel">
@@ -7548,6 +7601,8 @@
           i_chxp: "Экспа всей цепочки",
           i_unl: "Открывает далее",
           filters: "☰ Фильтры",
+          hdr_hide: "▲",
+          hdr_show: "▼",
           done: "Готово ✓",
           undone: "↩ Отменить",
           events: "Ивенты",
@@ -7624,6 +7679,8 @@
           i_chxp: "Chain XP",
           i_unl: "Unlocks next",
           filters: "☰ Filters",
+          hdr_hide: "▲",
+          hdr_show: "▼",
           done: "Done ✓",
           undone: "↩ Undo",
           events: "Events",
@@ -8980,6 +9037,20 @@
       document.getElementById("togglePanel").onclick = () => document.body.classList.add("panel-open");
 
       document.getElementById("panelClose").onclick = () => document.body.classList.remove("panel-open");
+
+      const hdrToggle = document.getElementById("hdrToggle");
+
+      function setHdrMin(min) {
+        document.body.classList.toggle("hdr-min", min);
+        hdrToggle.dataset.t = min ? "hdr_show" : "hdr_hide";
+        hdrToggle.textContent = t(hdrToggle.dataset.t);
+        hdrToggle.title = min ? "Развернуть / Expand" : "Свернуть / Collapse";
+        localStorage.setItem("eft_kappa_hdrmin", min ? "1" : "0");
+      }
+
+      hdrToggle.onclick = () => setHdrMin(!document.body.classList.contains("hdr-min"));
+
+      setHdrMin(localStorage.getItem("eft_kappa_hdrmin") === "1");
 
       const matchName = (d, q) => d.name.toLowerCase().includes(q) || (d.nameRu || "").toLowerCase().includes(q);
 

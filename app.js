@@ -97,6 +97,16 @@ const DICT = {
     undone: "↩ Отменить",
     events: "Ивенты",
     b_event: "ИВЕНТ",
+
+    sync_title: "Найдено два прогресса",
+    sync_sub: "Отметки на этом устройстве отличаются от сохранённых в облаке. Какой прогресс — правильный?",
+    sync_local: "Это устройство",
+    sync_cloud: "Облако",
+    sync_local_hint: "перезапишет облако",
+    sync_cloud_hint: "перезапишет устройство",
+    sync_merge: "✚ Объединить оба (рекомендуется)",
+    sync_note: "Объединение сохранит все отметки с обеих сторон — ничего не потеряется.",
+    sync_kappa: "Каппы",
   },
 
   en: {
@@ -175,6 +185,16 @@ const DICT = {
     undone: "↩ Undo",
     events: "Events",
     b_event: "EVENT",
+
+    sync_title: "Two progress versions found",
+    sync_sub: "Progress on this device differs from what's saved in the cloud. Which one is correct?",
+    sync_local: "This device",
+    sync_cloud: "Cloud",
+    sync_local_hint: "will overwrite the cloud",
+    sync_cloud_hint: "will overwrite this device",
+    sync_merge: "✚ Merge both (recommended)",
+    sync_note: "Merging keeps every completed quest from both sides — nothing is lost.",
+    sync_kappa: "Kappa",
   },
 };
 
@@ -1816,28 +1836,65 @@ async function loadFromCloud() {
     return;
   }
 
-  // Слияние вместо перезаписи: объединяем локальный и облачный прогресс,
-  // чтобы отметки, сделанные до входа, не терялись.
   const cloudDone = new Set(data?.done || []);
-  const localExtra = [...done].some((id) => !cloudDone.has(id));
-
-  cloudDone.forEach((id) => done.add(id));
-
   const cloudLevel = data?.mylevel ?? 0;
 
-  if (cloudLevel > myLevel) {
-    myLevel = cloudLevel;
-    document.getElementById("mylevel").value = myLevel;
-    localStorage.setItem("eft_kappa_level", myLevel);
-  }
+  const cloudEmpty = cloudDone.size === 0 && cloudLevel === 0;
+  const localEmpty = done.size === 0 && myLevel === 0;
+  const same = done.size === cloudDone.size && myLevel === cloudLevel && [...done].every((id) => cloudDone.has(id));
 
+  // Однозначные случаи решаем молча; спрашиваем пользователя только
+  // когда локальный и облачный прогресс реально расходятся.
+  if (same) setSyncState("ok");
+  else if (cloudEmpty) applySyncChoice("local", cloudDone, cloudLevel);
+  else if (localEmpty) applySyncChoice("cloud", cloudDone, cloudLevel);
+  else openSyncModal(cloudDone, cloudLevel);
+}
+
+// ---- конфликт прогресса: выбор пользователя ----
+
+function progressMeta(doneSet, lvl) {
+  const req = DATA.filter(isReq);
+  const doneReq = req.reduce((n, d) => n + (doneSet.has(d.id) ? 1 : 0), 0);
+  const pct = req.length ? Math.round((doneReq / req.length) * 100) : 0;
+
+  return `${doneSet.size} ${t("q")} · ${pct}% ${t("sync_kappa")} · ${t("mylevel_short")} ${lvl}`;
+}
+
+function openSyncModal(cloudDone, cloudLevel) {
+  document.getElementById("syncLocalMeta").textContent = progressMeta(done, myLevel);
+  document.getElementById("syncCloudMeta").textContent = progressMeta(cloudDone, cloudLevel);
+
+  const modal = document.getElementById("syncModal");
+  modal.style.display = "flex";
+
+  document.getElementById("syncKeepLocal").onclick = () => applySyncChoice("local", cloudDone, cloudLevel);
+  document.getElementById("syncKeepCloud").onclick = () => applySyncChoice("cloud", cloudDone, cloudLevel);
+  document.getElementById("syncMerge").onclick = () => applySyncChoice("merge", cloudDone, cloudLevel);
+}
+
+function applySyncChoice(choice, cloudDone, cloudLevel) {
+  document.getElementById("syncModal").style.display = "none";
+
+  if (choice === "cloud") {
+    done = new Set(cloudDone);
+    myLevel = cloudLevel;
+  } else if (choice === "merge") {
+    cloudDone.forEach((id) => done.add(id));
+    myLevel = Math.max(myLevel, cloudLevel);
+  }
+  // choice === "local": локальные данные остаются как есть
+
+  document.getElementById("mylevel").value = myLevel;
+  localStorage.setItem("eft_kappa_level", myLevel);
   saveLocal();
 
-  if (!data || localExtra || cloudLevel < myLevel) persistCloudSoon();
-  else setSyncState("ok");
+  if (choice === "cloud") setSyncState("ok");
+  else persistCloudSoon();
 
   updateStats();
   draw();
+  if (pinned) showInfo(pinned);
 }
 
 let syncTimer = null,

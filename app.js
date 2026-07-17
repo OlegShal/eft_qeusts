@@ -107,6 +107,8 @@ const DICT = {
     sync_merge: "✚ Объединить оба (рекомендуется)",
     sync_note: "Объединение сохранит все отметки с обеих сторон — ничего не потеряется.",
     sync_kappa: "Каппы",
+
+    xp_progress: "Общий прогресс",
   },
 
   en: {
@@ -195,6 +197,8 @@ const DICT = {
     sync_merge: "✚ Merge both (recommended)",
     sync_note: "Merging keeps every completed quest from both sides — nothing is lost.",
     sync_kappa: "Kappa",
+
+    xp_progress: "Overall progress",
   },
 };
 
@@ -537,6 +541,27 @@ function updateStats() {
 
   document.getElementById("stats").innerHTML =
     `${t("s_prog")}: <b class="g">${pct}%</b> (${doneReq} / ${req.length} ${t("q")})`;
+
+  // общий прогресс по экспе — тонкая полоса под шапкой
+  let totalXP = 0,
+    earnedXP = 0,
+    doneCnt = 0;
+
+  DATA.forEach((d) => {
+    const xp = sx(d.exp);
+    totalXP += xp;
+    if (done.has(d.id)) {
+      earnedXP += xp;
+      doneCnt++;
+    }
+  });
+
+  const xpPct = totalXP ? (earnedXP / totalXP) * 100 : 0;
+  const fmt = (v) => v.toLocaleString(LANG === "ru" ? "ru-RU" : "en-US");
+
+  document.getElementById("xpbar-fill").style.width = xpPct.toFixed(2) + "%";
+  document.getElementById("xpbar").title =
+    `${t("xp_progress")}: ${doneCnt} / ${DATA.length} ${t("q")} · ${fmt(earnedXP)} / ${fmt(totalXP)} XP (${Math.round(xpPct)}%)`;
 
   const strip = document.getElementById("reqstrip");
 

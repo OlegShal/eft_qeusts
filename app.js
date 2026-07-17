@@ -639,6 +639,7 @@ function render() {
   gNodes.innerHTML = "";
   nodeEls.clear();
   edgeEls = [];
+  mmNodes = [];
 
   const pos = new Map();
   let maxColH = 0;
@@ -856,9 +857,12 @@ function render() {
 
     gNodes.appendChild(g);
     nodeEls.set(d.id, g);
+    mmNodes.push({ id: d.id, x: c.x, y: c.y, st: stt, done: done.has(d.id) });
   });
 
   document.getElementById("graphEmpty").style.display = nodeEls.size ? "none" : "flex";
+
+  drawMinimap();
 
   if (_firstRender) {
     fit();
@@ -915,6 +919,9 @@ function refreshNodeStates() {
 
     g.setAttribute("class", classes);
   });
+
+  mmNodes.forEach((n) => (n.done = done.has(n.id)));
+  drawMinimap();
 }
 
 function drawAfterDone() {
@@ -1043,7 +1050,7 @@ function handleNodeClick(cx, cy) {
 document.getElementById("stage").addEventListener("pointerdown", (e) => {
   if (viewMode !== "graph") return;
 
-  if (e.target.closest("#info")) return;
+  if (e.target.closest("#info") || e.target.closest("#minimap")) return;
 
   _clickStart = { x: e.clientX, y: e.clientY, id: e.pointerId };
 });
@@ -1051,7 +1058,7 @@ document.getElementById("stage").addEventListener("pointerdown", (e) => {
 document.getElementById("stage").addEventListener("pointerup", (e) => {
   if (!_clickStart || _clickStart.id !== e.pointerId) return;
 
-  if (e.target.closest("#info")) {
+  if (e.target.closest("#info") || e.target.closest("#minimap")) {
     _clickStart = null;
     return;
   }
@@ -1413,7 +1420,10 @@ let tx = 0,
 const stage = document.getElementById("stage"),
   view = document.getElementById("view");
 
-const apply = () => view.setAttribute("transform", `translate(${tx},${ty}) scale(${k})`);
+const apply = () => {
+  view.setAttribute("transform", `translate(${tx},${ty}) scale(${k})`);
+  updateMMView();
+};
 
 let userAdjustedView = false; // ручной пан/зум отключает авто-подгонку при resize
 
@@ -1452,7 +1462,7 @@ stage.addEventListener(
   "wheel",
   (e) => {
     if (viewMode !== "graph") return;
-    if (e.target.closest("#info")) return;
+    if (e.target.closest("#info") || e.target.closest("#minimap")) return;
     e.preventDefault();
     const r = stage.getBoundingClientRect();
     zoomAt(e.clientX - r.left, e.clientY - r.top, e.deltaY < 0 ? 1.12 : 1 / 1.12);
@@ -1467,7 +1477,7 @@ let pts = new Map(),
 stage.addEventListener("pointerdown", (e) => {
   if (viewMode !== "graph") return;
 
-  if (e.target.closest("#info")) return;
+  if (e.target.closest("#info") || e.target.closest("#minimap")) return;
 
   pts.set(e.pointerId, e);
 
@@ -1518,6 +1528,107 @@ const endPtr = (e) => {
 
 stage.addEventListener("pointerup", endPtr);
 stage.addEventListener("pointercancel", endPtr);
+
+// ---- MINIMAP ----
+
+const MM_W = 180,
+  MM_MAXH = 120;
+
+const mmWrap = document.getElementById("minimap"),
+  mmCanvas = document.getElementById("mmCanvas"),
+  mmView = document.getElementById("mmView");
+
+let mmScale = 1,
+  mmNodes = [];
+
+let stageW = 0,
+  stageH = 0;
+
+new ResizeObserver(() => {
+  const r = stage.getBoundingClientRect();
+  stageW = r.width;
+  stageH = r.height;
+  updateMMView();
+}).observe(stage);
+
+function drawMinimap() {
+  if (!mmNodes.length || !LW || !LH) {
+    mmWrap.style.display = "none";
+    return;
+  }
+
+  mmWrap.style.display = "block";
+
+  mmScale = Math.min(MM_W / LW, MM_MAXH / LH);
+
+  const w = Math.max(40, Math.round(LW * mmScale)),
+    h = Math.max(30, Math.round(LH * mmScale));
+
+  const dpr = window.devicePixelRatio || 1;
+  mmCanvas.width = w * dpr;
+  mmCanvas.height = h * dpr;
+  mmCanvas.style.width = w + "px";
+  mmCanvas.style.height = h + "px";
+
+  const ctx = mmCanvas.getContext("2d");
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
+
+  const cs = getComputedStyle(document.documentElement);
+  const C = {
+    req: cs.getPropertyValue("--gold").trim() || "#e8c15a",
+    seed: cs.getPropertyValue("--gold2").trim() || "#ffe08a",
+    event: cs.getPropertyValue("--event").trim() || "#a066ff",
+    done: cs.getPropertyValue("--good").trim() || "#63c088",
+    normal: "#71715f",
+    junk: "#43432f",
+  };
+
+  const nw = Math.max(2, NODE_W * mmScale),
+    nh = Math.max(1.5, NODE_H * mmScale);
+
+  mmNodes.forEach((n) => {
+    ctx.globalAlpha = n.done ? 0.4 : 0.95;
+    ctx.fillStyle = n.done ? C.done : C[n.st] || C.normal;
+    ctx.fillRect(n.x * mmScale, n.y * mmScale, nw, nh);
+  });
+
+  ctx.globalAlpha = 1;
+  updateMMView();
+}
+
+function updateMMView() {
+  if (!LW || !mmNodes.length) return;
+
+  mmView.style.left = (-tx / k) * mmScale + "px";
+  mmView.style.top = (-ty / k) * mmScale + "px";
+  mmView.style.width = (stageW / k) * mmScale + "px";
+  mmView.style.height = (stageH / k) * mmScale + "px";
+}
+
+let mmDrag = false;
+
+function mmNavigate(e) {
+  const r = mmCanvas.getBoundingClientRect();
+
+  tx = stageW / 2 - ((e.clientX - r.left) / mmScale) * k;
+  ty = stageH / 2 - ((e.clientY - r.top) / mmScale) * k;
+  userAdjustedView = true;
+  apply();
+}
+
+mmWrap.addEventListener("pointerdown", (e) => {
+  mmDrag = true;
+  mmWrap.setPointerCapture(e.pointerId);
+  mmNavigate(e);
+});
+
+mmWrap.addEventListener("pointermove", (e) => {
+  if (mmDrag) mmNavigate(e);
+});
+
+mmWrap.addEventListener("pointerup", () => (mmDrag = false));
+mmWrap.addEventListener("pointercancel", () => (mmDrag = false));
 
 document.getElementById("switch").addEventListener("click", (e) => {
   const b = e.target.closest("button");
@@ -1670,6 +1781,7 @@ function applyTheme(th) {
     .querySelectorAll("#themeSw .theme-dot")
     .forEach((b) => b.classList.toggle("on", (b.dataset.theme || "") === (th || "")));
   localStorage.setItem("eft_kappa_theme", th || "");
+  drawMinimap(); // цвета мини-карты берутся из темы
 }
 document.querySelectorAll("#themeSw .theme-dot").forEach((b) => (b.onclick = () => applyTheme(b.dataset.theme)));
 applyTheme(localStorage.getItem("eft_kappa_theme") || "");

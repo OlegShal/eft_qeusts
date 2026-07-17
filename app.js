@@ -665,17 +665,6 @@ function updateStats() {
   document.getElementById("xpbar").title =
     `${t("xp_progress")}: ${doneCnt} / ${DATA.length} ${t("q")} · ${fmt(earnedXP)} / ${fmt(totalXP)} XP (${Math.round(xpPct)}%)`;
 
-  const strip = document.getElementById("reqstrip");
-
-  if (MODE === "new") {
-    strip.style.display = "flex";
-
-    strip.innerHTML =
-      `<b>${t("collector")}</b>` +
-      `<span class="pill">LL4: ${["Therapist", "Prapor", "Peacekeeper", "Mechanic", "Jaeger", "Skier", "Ragman"].map((x) => t(x)).join(" · ")}</span>` +
-      `<span class="pill">${t("fencerep")}</span><span class="pill">${t("level")}</span>` +
-      `<span class="pill">${t("keys")} ${newReq.size} ${t("chain")}</span>`;
-  } else strip.style.display = "none";
 }
 
 function visible(d) {
@@ -1505,7 +1494,12 @@ function xpPathPlan(maxSteps = 15) {
   let total = 0;
 
   const lvlOk = (d) => myLevel === 0 || d.minLevel <= myLevel;
-  const eligible = (d) => !isEvent(d) && lvlOk(d) && (!scopeKappa || isReq(d));
+
+  // Скупщик, БТРщик и Реф — вне плана: их квесты завязаны на репутацию,
+  // деньги и события, XP-порядок для них не имеет смысла
+  const PATH_EXCLUDE = new Set(["Fence", "BTR Driver", "Ref"]);
+
+  const eligible = (d) => !isEvent(d) && !PATH_EXCLUDE.has(d.trader) && lvlOk(d) && (!scopeKappa || isReq(d));
 
   for (let i = 0; i < maxSteps; i++) {
     let best = null,

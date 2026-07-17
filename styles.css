@@ -919,29 +919,6 @@ input[type="search"] {
   border-radius: 3px;
 }
 
-#reqstrip {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 12%, transparent), color-mix(in srgb, var(--gold) 2%, transparent));
-  border-bottom: 1px solid var(--goldsoft);
-  font-size: 11.5px;
-  color: var(--gold2);
-  flex-wrap: wrap;
-}
-
-#reqstrip b {
-  color: var(--gold2);
-}
-
-#reqstrip .pill {
-  border: 1px solid var(--goldsoft);
-  border-radius: 20px;
-  padding: 2px 9px;
-  background: rgba(0, 0, 0, 0.2);
-}
-
 /* views */
 
 #stage {
@@ -2087,20 +2064,6 @@ body.plannerview #minimap {
     font-weight: 700;
     cursor: pointer;
     z-index: 10;
-  }
-
-  #reqstrip {
-    font-size: 12px;
-    padding: 12px 2px;
-    border: 0;
-    flex-direction: column;
-    align-items: stretch;
-    min-width: 0;
-  }
-
-  #reqstrip .pill {
-    white-space: normal;
-    overflow-wrap: anywhere;
   }
 
   #bar,

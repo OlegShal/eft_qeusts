@@ -84,15 +84,18 @@
           </div>
         </div>
 
-        <button class="btn only-mobile" id="togglePanel" data-t="filters">☰ Фильтры</button>
-
-        <button class="btn only-mobile" id="hdrToggle" data-t="hdr_hide" title="Свернуть / Развернуть">▲</button>
+        <button class="btn only-mobile" id="togglePanel" data-t="filters">☰ Меню</button>
       </header>
 
       <div id="xpbar"><div id="xpbar-fill"></div></div>
 
       <div id="panel">
         <button class="only-mobile" id="panelClose" data-t="done">Готово ✓</button>
+
+        <!-- секции мобильного меню: на телефоне сюда переезжают элементы шапки -->
+        <div class="f-group p-sec" id="ps-search">
+          <div class="f-title" data-t="ps_search">Поиск</div>
+        </div>
 
         <div id="reqstrip"></div>
 
@@ -128,6 +131,18 @@
           </div>
 
           <div id="legend" class="f-group"></div>
+        </div>
+
+        <div class="f-group p-sec" id="ps-mode">
+          <div class="f-title" data-t="ps_mode">Версия и охват</div>
+        </div>
+
+        <div class="f-group p-sec" id="ps-tools">
+          <div class="f-title" data-t="ps_tools">Уровень · сезон · тема</div>
+        </div>
+
+        <div class="f-group p-sec" id="ps-misc">
+          <div class="f-title" data-t="ps_misc">Язык и аккаунт</div>
         </div>
       </div>
 

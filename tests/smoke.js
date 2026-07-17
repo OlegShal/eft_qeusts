@@ -132,24 +132,27 @@ const serve = () =>
   await m.waitForTimeout(1500);
   const mm = await m.evaluate(() => {
     const doc = document.documentElement;
-    const tools = document.querySelector(".hdr-tools").getBoundingClientRect();
-    return { overflow: doc.scrollWidth - doc.clientWidth, toolsRight: Math.round(tools.right), vw: doc.clientWidth };
+    return {
+      overflow: doc.scrollWidth - doc.clientWidth,
+      hdrH: Math.round(document.querySelector("header").getBoundingClientRect().height),
+    };
   });
-  check("mobile: no horizontal overflow", mm.overflow === 0 && mm.toolsRight <= mm.vw, JSON.stringify(mm));
+  check("mobile: no horizontal overflow", mm.overflow === 0, JSON.stringify(mm));
+  check("mobile: header is one compact row", mm.hdrH < 100, mm.hdrH + "px");
 
-  await m.click("#hdrToggle");
-  await m.waitForTimeout(200);
-  const collapsed = await m.evaluate(() => ({
-    hdrH: Math.round(document.querySelector("header").getBoundingClientRect().height),
-    min: document.body.classList.contains("hdr-min"),
-  }));
-  check("mobile: header collapses", collapsed.min && collapsed.hdrH < 100, JSON.stringify(collapsed));
-
+  // всё второстепенное переехало в меню
   await m.click("#togglePanel");
   await m.waitForTimeout(200);
-  check("mobile: filters panel opens", await m.evaluate(() => document.body.classList.contains("panel-open")));
+  const menu = await m.evaluate(() => ({
+    open: document.body.classList.contains("panel-open"),
+    search: !!document.querySelector("#ps-search #search"),
+    mode: !!document.querySelector("#ps-mode #switch"),
+    level: !!document.querySelector("#ps-tools #mylevel"),
+    auth: !!document.querySelector("#ps-misc #auth-ui"),
+  }));
+  check("mobile: menu opens with relocated controls", Object.values(menu).every(Boolean), JSON.stringify(menu));
   await m.click("#panelClose");
-  check("mobile: filters panel closes", await m.evaluate(() => !document.body.classList.contains("panel-open")));
+  check("mobile: menu closes", await m.evaluate(() => !document.body.classList.contains("panel-open")));
   await m.close();
 
   await browser.close();

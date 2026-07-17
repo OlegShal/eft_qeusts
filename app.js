@@ -90,9 +90,11 @@ const DICT = {
     i_ch: "Всего в цепочке",
     i_chxp: "Экспа всей цепочки",
     i_unl: "Открывает далее",
-    filters: "☰ Фильтры",
-    hdr_hide: "▲",
-    hdr_show: "▼",
+    filters: "☰ Меню",
+    ps_search: "Поиск",
+    ps_mode: "Версия и охват",
+    ps_tools: "Уровень · сезон · тема",
+    ps_misc: "Язык и аккаунт",
     done: "Готово ✓",
     undone: "↩ Отменить",
     events: "Ивенты",
@@ -185,9 +187,11 @@ const DICT = {
     i_ch: "Chain total",
     i_chxp: "Chain XP",
     i_unl: "Unlocks next",
-    filters: "☰ Filters",
-    hdr_hide: "▲",
-    hdr_show: "▼",
+    filters: "☰ Menu",
+    ps_search: "Search",
+    ps_mode: "Version & scope",
+    ps_tools: "Level · season · theme",
+    ps_misc: "Language & account",
     done: "Done ✓",
     undone: "↩ Undo",
     events: "Events",
@@ -1890,19 +1894,35 @@ document.getElementById("togglePanel").onclick = () => document.body.classList.a
 
 document.getElementById("panelClose").onclick = () => document.body.classList.remove("panel-open");
 
-const hdrToggle = document.getElementById("hdrToggle");
+// ---- мобильная раскладка ----
+// Шапка на телефоне — всегда одна компактная строка; всё остальное
+// физически переезжает в полноэкранное меню (#panel) и обратно на десктопе.
 
-function setHdrMin(min) {
-  document.body.classList.toggle("hdr-min", min);
-  hdrToggle.dataset.t = min ? "hdr_show" : "hdr_hide";
-  hdrToggle.textContent = t(hdrToggle.dataset.t);
-  hdrToggle.title = min ? "Развернуть / Expand" : "Свернуть / Collapse";
-  localStorage.setItem("eft_kappa_hdrmin", min ? "1" : "0");
+const mobileMoves = [
+  { el: document.querySelector(".ctrl"), to: "ps-search" },
+  { el: document.getElementById("switch"), to: "ps-mode" },
+  { el: document.getElementById("kappaBtn"), to: "ps-mode" },
+  { el: document.querySelector(".hdr-tools"), to: "ps-tools" },
+  { el: document.getElementById("langsw"), to: "ps-misc" },
+  { el: document.getElementById("auth-ui"), to: "ps-misc" },
+].map((m) => {
+  // маркер запоминает исходное место в шапке для точного возврата
+  m.marker = document.createComment("home");
+  m.el.parentNode.insertBefore(m.marker, m.el);
+  return m;
+});
+
+function relocateControls(mobile) {
+  mobileMoves.forEach((m) => {
+    if (mobile) document.getElementById(m.to).appendChild(m.el);
+    else m.marker.parentNode.insertBefore(m.el, m.marker.nextSibling);
+  });
 }
 
-hdrToggle.onclick = () => setHdrMin(!document.body.classList.contains("hdr-min"));
+const mobileMQ = matchMedia("(max-width: 820px)");
 
-setHdrMin(localStorage.getItem("eft_kappa_hdrmin") === "1");
+relocateControls(mobileMQ.matches);
+mobileMQ.addEventListener("change", (e) => relocateControls(e.matches));
 
 const matchName = (d, q) => d.name.toLowerCase().includes(q) || (d.nameRu || "").toLowerCase().includes(q);
 
@@ -1928,6 +1948,9 @@ search.addEventListener("keydown", (e) => {
   const hit = DATA.find((d) => matchName(d, q) && nodeEls.has(d.id));
 
   if (hit && nodeEls.has(hit.id)) {
+    // на мобиле поиск живёт в меню — при переходе к квесту закрываем его
+    document.body.classList.remove("panel-open");
+
     if (viewMode !== "graph") {
       document.querySelector('#viewsw button[data-view="graph"]').click();
     }

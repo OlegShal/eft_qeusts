@@ -510,7 +510,7 @@ try {
 
     if (Array.isArray(fs.tradersOff)) fs.tradersOff.forEach((tr) => traderOn.delete(tr));
 
-    if (fs.links === false) document.body.classList.remove("links");
+    document.body.classList.toggle("links", !!fs.links);
   }
 } catch (e) {}
 

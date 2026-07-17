@@ -1036,7 +1036,7 @@ body.plannerview #hint {
 }
 
 body.links #edges path {
-  opacity: 0.05;
+  opacity: 0.45;
 }
 
 #edges path.hl {

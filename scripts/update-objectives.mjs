@@ -1,10 +1,19 @@
-// Обновляет tasks.json целями квестов (EN+RU) и вики-ссылками из api.tarkov.dev.
+// Обновляет tasks.json целями квестов (EN+RU), вики-ссылками, предметами
+// и ключами из api.tarkov.dev.
 //
 // Запуск:  node scripts/update-objectives.mjs
 //
+// ВАЖНО: из облачной песочницы Claude api.tarkov.dev недоступен (сетевая
+// политика окружения) — запускать с локальной машины. См. TODO.md.
+//
 // Требуется доступ к https://api.tarkov.dev (открытый GraphQL API, без ключей).
-// Скрипт дополняет существующие квесты полями `wiki` и `objectives`
-// [{ type, en, ru?, count?, fir?, optional? }] и ничего больше не трогает.
+// Скрипт дополняет существующие квесты полями:
+//   wiki        — ссылка на страницу вики
+//   objectives  — [{ type, en, ru?, count?, fir?, optional?, items? }]
+//                 items: [{ n: имя, s: короткая подпись, icon: URL иконки }]
+//   keys        — требуемые ключи [{ n, s, icon, map? }]
+// (items/keys с иконками — данные под фичу «Сборы в рейд», см. TODO.md)
+// и ничего больше не трогает.
 
 import { readFile, writeFile } from "fs/promises";
 
@@ -14,16 +23,28 @@ const QUERY = (lang) => `{
   tasks(lang: ${lang}) {
     id
     wikiLink
+    neededKeys {
+      keys { name shortName iconLink }
+      map { name }
+    }
     objectives {
       id
       type
       description
       optional
-      ... on TaskObjectiveItem { count foundInRaid }
+      ... on TaskObjectiveItem {
+        count
+        foundInRaid
+        items { name shortName iconLink }
+      }
       ... on TaskObjectiveShoot { count }
     }
   }
 }`;
+
+const MAX_ALT_ITEMS = 8; // альтернативы вида «любой из ключей» не раздуваем
+
+const packItem = (i) => ({ n: i.name, s: i.shortName, icon: i.iconLink });
 
 async function gql(lang) {
   const res = await fetch("https://api.tarkov.dev/graphql", {
@@ -73,6 +94,13 @@ for (const q of tasks) {
 
   if (e.wikiLink) q.wiki = e.wikiLink;
 
+  // требуемые ключи (для чек-листа «Сборы в рейд»)
+  const keys = (e.neededKeys || []).flatMap((nk) =>
+    (nk.keys || []).map((k) => ({ ...packItem(k), ...(nk.map?.name ? { map: nk.map.name } : {}) })),
+  );
+  if (keys.length) q.keys = keys;
+  else delete q.keys;
+
   const ruObjs = new Map((ruMap.get(q.id)?.objectives || []).map((o) => [o.id, o]));
 
   const objs = (e.objectives || [])
@@ -86,6 +114,8 @@ for (const q of tasks) {
       if (o.count > 1) out.count = o.count;
       if (o.foundInRaid) out.fir = true;
       if (o.optional) out.optional = true;
+
+      if (o.items?.length) out.items = o.items.slice(0, MAX_ALT_ITEMS).map(packItem);
 
       return out;
     });

@@ -129,6 +129,17 @@ header {
   flex-wrap: wrap;
 }
 
+/* два осмысленных ряда шапки на десктопе; на мобиле display:contents
+   возвращает детей в общий flex-поток компактной шапки */
+.hdr-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .brand {
   font-family: var(--font-brand);
   font-size: 14px;
@@ -1897,6 +1908,10 @@ body.plannerview #minimap {
 
   /* шапка — всегда одна компактная строка: ☰ Меню | вид | ▶ Дальше.
      Остальные элементы JS переносит в секции #panel (см. relocateControls) */
+
+  .hdr-row {
+    display: contents;
+  }
 
   #togglePanel {
     order: -3;

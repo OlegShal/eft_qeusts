@@ -2213,8 +2213,6 @@ document.getElementById("f-onlyavail").addEventListener("change", (e) => {
   draw();
 });
 
-document.getElementById("fit").onclick = fit;
-
 document.getElementById("zfit").onclick = fit;
 
 document.getElementById("zin").onclick = () => {

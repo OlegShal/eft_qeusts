@@ -110,6 +110,7 @@ const DICT = {
 
     xp_progress: "Общий прогресс",
     nextup: "▶ Дальше",
+    resetfilters: "Сбросить фильтры",
   },
 
   en: {
@@ -201,6 +202,7 @@ const DICT = {
 
     xp_progress: "Overall progress",
     nextup: "▶ Next up",
+    resetfilters: "Reset filters",
   },
 };
 
@@ -854,6 +856,8 @@ function render() {
     nodeEls.set(d.id, g);
   });
 
+  document.getElementById("graphEmpty").style.display = nodeEls.size ? "none" : "flex";
+
   if (_firstRender) {
     fit();
     _firstRender = false;
@@ -1134,7 +1138,8 @@ function renderList() {
 
   </tr></thead><tbody>`;
 
-  if (!rows.length) html += `<tr><td colspan="7" class="empty">${t("listempty")}</td></tr>`;
+  if (!rows.length)
+    html += `<tr><td colspan="7" class="empty">${t("listempty")}<br /><button class="btn reset-filters">${t("resetfilters")}</button></td></tr>`;
 
   rows.forEach((d) => {
     const stt = status(d);
@@ -1278,7 +1283,7 @@ function renderPlanner() {
   });
 
   if (sortedMaps.length === 0 && global.length === 0) {
-    html += `<div style="padding:20px;color:var(--muted)">${t("listempty")}</div>`;
+    html += `<div class="planner-empty">${t("listempty")}<br /><button class="btn reset-filters">${t("resetfilters")}</button></div>`;
   }
 
   html += `</div>`;
@@ -1585,17 +1590,41 @@ document.getElementById("minxp").addEventListener("input", (e) => {
   draw();
 });
 
-// восстановление UI фильтров из localStorage
-document.getElementById("f-req").classList.toggle("on", F.req);
-document.getElementById("f-normal").classList.toggle("on", F.normal);
-document.getElementById("f-event").classList.toggle("on", F.event);
-document.getElementById("f-hidedone").classList.toggle("on", F.hidedone);
-document.getElementById("f-onlyavail").classList.toggle("on", F.onlyavail);
-document.getElementById("links").classList.toggle("on", document.body.classList.contains("links"));
-document.getElementById("kappaBtn").classList.toggle("on", scopeKappa);
-document.getElementById("minxp").value = F.minxp;
-document.getElementById("minxpv").textContent = F.minxp ? F.minxp / 1000 + "k" : "0";
-syncNextBtn();
+// синхронизация UI фильтров с состоянием (после восстановления/сброса)
+function syncFilterUI() {
+  document.getElementById("f-req").classList.toggle("on", F.req);
+  document.getElementById("f-normal").classList.toggle("on", F.normal);
+  document.getElementById("f-event").classList.toggle("on", F.event);
+  document.getElementById("f-hidedone").classList.toggle("on", F.hidedone);
+  document.getElementById("f-onlyavail").classList.toggle("on", F.onlyavail);
+  document.getElementById("links").classList.toggle("on", document.body.classList.contains("links"));
+  document.getElementById("kappaBtn").classList.toggle("on", scopeKappa);
+  document.getElementById("minxp").value = F.minxp;
+  document.getElementById("minxpv").textContent = F.minxp ? F.minxp / 1000 + "k" : "0";
+  syncNextBtn();
+}
+
+syncFilterUI();
+
+function resetFilters() {
+  Object.assign(F, { req: true, normal: true, junk: false, event: false, minxp: 0, hidedone: false, onlyavail: false });
+  scopeKappa = false;
+  document.body.classList.add("links");
+
+  traders.forEach((tr) => traderOn.add(tr));
+  document.querySelectorAll("#legend .legend-item").forEach((el) => (el.style.opacity = 1));
+
+  searchQ = "";
+  document.getElementById("search").value = "";
+
+  syncFilterUI();
+  draw();
+}
+
+// кнопки «Сбросить фильтры» в пустых состояниях рендерятся динамически
+document.addEventListener("click", (e) => {
+  if (e.target.closest(".reset-filters")) resetFilters();
+});
 
 ["f-req", "f-normal", "f-event", "links", "f-hidedone", "f-onlyavail"].forEach((id) => {
   const b = document.getElementById(id);

@@ -2042,34 +2042,91 @@ search.addEventListener("input", () => {
   edgeEls.forEach((p) => p.classList.remove("hl"));
 });
 
+search.addEventListener("input", () => renderSug(search.value.trim().toLowerCase()));
+
+function jumpToQuest(hit) {
+  if (!hit) return;
+
+  // на мобиле поиск живёт в меню — при переходе к квесту закрываем его
+  document.body.classList.remove("panel-open");
+  hideSug();
+
+  if (!nodeEls.has(hit.id)) {
+    // узел скрыт фильтрами — хотя бы показываем карточку
+    pinned = hit.id;
+    showInfo(hit.id);
+    return;
+  }
+
+  if (viewMode !== "graph") {
+    document.querySelector('#viewsw button[data-view="graph"]').click();
+  }
+
+  nodeEls.get(hit.id).dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+  const coordG = nodeEls
+    .get(hit.id)
+    .getAttribute("transform")
+    .match(/translate\(([-\d.]+),([-\d.]+)\)/);
+
+  const nx = +coordG[1],
+    ny = +coordG[2];
+  const r = stage.getBoundingClientRect();
+  tx = r.width / 2 - (nx + NODE_W / 2) * k;
+  ty = r.height / 2 - (ny + NODE_H / 2) * k;
+  apply();
+}
+
 search.addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   const q = search.value.trim().toLowerCase();
-  const hit = DATA.find((d) => matchName(d, q) && nodeEls.has(d.id));
-
-  if (hit && nodeEls.has(hit.id)) {
-    // на мобиле поиск живёт в меню — при переходе к квесту закрываем его
-    document.body.classList.remove("panel-open");
-
-    if (viewMode !== "graph") {
-      document.querySelector('#viewsw button[data-view="graph"]').click();
-    }
-
-    nodeEls.get(hit.id).dispatchEvent(new MouseEvent("click", { bubbles: true }));
-
-    const coordG = nodeEls
-      .get(hit.id)
-      .getAttribute("transform")
-      .match(/translate\(([-\d.]+),([-\d.]+)\)/);
-
-    const nx = +coordG[1],
-      ny = +coordG[2];
-    const r = stage.getBoundingClientRect();
-    tx = r.width / 2 - (nx + NODE_W / 2) * k;
-    ty = r.height / 2 - (ny + NODE_H / 2) * k;
-    apply();
-  }
+  jumpToQuest(DATA.find((d) => matchName(d, q) && nodeEls.has(d.id)) || DATA.find((d) => matchName(d, q)));
 });
+
+// живые подсказки под полем поиска
+const sugEl = document.createElement("div");
+sugEl.id = "searchSug";
+search.parentElement.appendChild(sugEl);
+
+function hideSug() {
+  sugEl.style.display = "none";
+  sugEl.innerHTML = "";
+}
+
+function renderSug(q) {
+  if (!q) {
+    hideSug();
+    return;
+  }
+
+  const hits = DATA.filter((d) => matchName(d, q)).slice(0, 6);
+
+  if (!hits.length) {
+    hideSug();
+    return;
+  }
+
+  sugEl.innerHTML = hits
+    .map(
+      (d) =>
+        `<div class="sug" data-id="${d.id}"><span class="sug-dot" style="background:${TC[d.trader] || "#888"}"></span>` +
+        `<span class="sug-nm">${dn(d)}</span><span class="sug-meta">${t(d.trader)}${d.minLevel ? " · " + t("c_lvl") + " " + d.minLevel : ""}</span></div>`,
+    )
+    .join("");
+  sugEl.style.display = "block";
+}
+
+sugEl.addEventListener("pointerdown", (e) => {
+  const row = e.target.closest(".sug");
+  if (!row) return;
+  e.preventDefault();
+  search.value = "";
+  searchQ = "";
+  nodeEls.forEach((g) => g.classList.remove("dim"));
+  jumpToQuest(byId.get(row.dataset.id));
+});
+
+search.addEventListener("blur", () => setTimeout(hideSug, 150));
 
 // ---- SUPABASE CLOUD SYNC ----
 

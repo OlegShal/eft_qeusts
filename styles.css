@@ -29,7 +29,7 @@
   --line2: #43423a;
   --text: #e9e7da;
   --muted: #9a9c85;
-  --dim: #6f7160;
+  --dim: #85876f;
   --gold: #e8c15a;
   --gold2: #ffe08a;
   --gold-dark: #caa63f;
@@ -50,7 +50,7 @@
   --line2: #384738;
   --text: #dfeae2;
   --muted: #8ba493;
-  --dim: #5f7266;
+  --dim: #75897c;
   --gold: #46c98a;
   --gold2: #7fe6b0;
   --gold-dark: #2f9b68;
@@ -67,7 +67,7 @@
   --line2: #3b4048;
   --text: #e2e6ee;
   --muted: #8f95a3;
-  --dim: #666d7a;
+  --dim: #7d8493;
   --gold: #56a8ea;
   --gold2: #8fccff;
   --gold-dark: #3f86c9;
@@ -84,7 +84,7 @@
   --line2: #423b47;
   --text: #e8e2ee;
   --muted: #9a8fa6;
-  --dim: #6f6579;
+  --dim: #867b91;
   --gold: #b483f0;
   --gold2: #d3b3ff;
   --gold-dark: #9560d8;
@@ -845,6 +845,8 @@ input[type="search"] {
   overflow: hidden;
   background: radial-gradient(circle at 50% 35%, var(--bg2), var(--bg0) 92%);
   cursor: grab;
+  /* жесты (пан/пинч/двойной тап) обрабатываем сами */
+  touch-action: none;
 }
 
 #stage.drag {

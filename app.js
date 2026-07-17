@@ -1009,6 +1009,8 @@ gNodes.addEventListener("mouseout", (e) => {
 
 let _clickStart = null;
 
+let _lastTap = null;
+
 function handleNodeClick(cx, cy) {
   const infoEl = document.getElementById("info");
 
@@ -1069,7 +1071,25 @@ document.getElementById("stage").addEventListener("pointerup", (e) => {
   const cs = _clickStart;
   _clickStart = null;
 
-  if (Math.abs(dx) < 5 && Math.abs(dy) < 5) handleNodeClick(e.clientX, e.clientY);
+  if (Math.abs(dx) < 5 && Math.abs(dy) < 5) {
+    // двойной тап на таче — зум к точке (и не разворачивает клик по узлу)
+    const now = Date.now();
+
+    if (
+      e.pointerType === "touch" &&
+      _lastTap &&
+      now - _lastTap.t < 350 &&
+      Math.hypot(e.clientX - _lastTap.x, e.clientY - _lastTap.y) < 40
+    ) {
+      _lastTap = null;
+      const r = stage.getBoundingClientRect();
+      zoomAt(e.clientX - r.left, e.clientY - r.top, 1.8);
+      return;
+    }
+
+    _lastTap = { t: now, x: e.clientX, y: e.clientY };
+    handleNodeClick(e.clientX, e.clientY);
+  }
 });
 
 document.getElementById("infoClose").onclick = () => {

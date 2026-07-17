@@ -68,7 +68,7 @@
           <input type="search" id="search" data-tph="search" placeholder="Поиск квеста…" autocomplete="off" />
         </div>
 
-        <button class="btn" id="fit" data-t="fit">Вписать</button>
+        <button class="btn" id="fit" data-t="fit">⤢ Весь граф</button>
 
         <div class="auth-ui" id="auth-ui">
           <button id="btnLogin" class="btn" data-t="login">Вход (Cloud)</button>
@@ -158,7 +158,11 @@
           колесо — зум · тащить — панорама · навести/кликнуть квест — подсветить цепочку
         </div>
 
-        <div id="zoombox"><button class="btn" id="zout">－</button><button class="btn" id="zin">＋</button></div>
+        <div id="zoombox">
+          <button class="btn" id="zfit" data-tt="fit_t" title="Весь граф">⤢</button>
+          <button class="btn" id="zout">－</button>
+          <button class="btn" id="zin">＋</button>
+        </div>
       </div>
     </div>
 

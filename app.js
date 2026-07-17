@@ -111,6 +111,7 @@ const DICT = {
     xp_progress: "Общий прогресс",
     nextup: "▶ Дальше",
     resetfilters: "Сбросить фильтры",
+    fit_t: "Весь граф",
   },
 
   en: {
@@ -203,6 +204,7 @@ const DICT = {
     xp_progress: "Overall progress",
     nextup: "▶ Next up",
     resetfilters: "Reset filters",
+    fit_t: "Fit whole graph",
   },
 };
 
@@ -1695,6 +1697,8 @@ document.getElementById("f-onlyavail").addEventListener("change", (e) => {
 
 document.getElementById("fit").onclick = fit;
 
+document.getElementById("zfit").onclick = fit;
+
 document.getElementById("zin").onclick = () => {
   k = clampK(k * 1.3);
   userAdjustedView = true;
@@ -2046,6 +2050,8 @@ function applyLang() {
   document.querySelectorAll("[data-t]").forEach((el) => (el.textContent = t(el.dataset.t)));
 
   document.querySelectorAll("[data-tph]").forEach((el) => (el.placeholder = t(el.dataset.tph)));
+
+  document.querySelectorAll("[data-tt]").forEach((el) => (el.title = t(el.dataset.tt)));
 
   document.documentElement.lang = LANG;
 

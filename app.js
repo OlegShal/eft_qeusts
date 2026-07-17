@@ -117,6 +117,7 @@ const DICT = {
     objectives: "Цели",
     wiki: "Открыть на вики",
     rs_items: "Нужны предметы",
+    rs_keys: "Ключи",
     rs_goals: "Цели на карте",
     undo_btn: "↩ Отменить",
     toast_done: "Готово",
@@ -227,6 +228,7 @@ const DICT = {
     objectives: "Objectives",
     wiki: "Open wiki",
     rs_items: "Items needed",
+    rs_keys: "Keys",
     rs_goals: "Objectives here",
     undo_btn: "↩ Undo",
     toast_done: "Done",
@@ -1078,15 +1080,28 @@ function showInfo(id) {
     html += `<div class="obj-title">${t("objectives")}</div><div class="objs">`;
 
     d.objectives.forEach((o) => {
+      const icons = (o.items || [])
+        .map((it) => {
+          const tt = (it.n + (it.nRu ? " · " + it.nRu : "")).replace(/"/g, "&quot;");
+          return `<img class="obj-itm" src="${it.icon}" alt="${tt}" title="${tt}" loading="lazy" />`;
+        })
+        .join("");
+
       html +=
         `<div class="obj${o.optional ? " obj-opt" : ""}"><span class="obj-ic">${OBJ_ICON[o.type] || "•"}</span>` +
-        `<span class="obj-tx">${LANG === "ru" && o.ru ? o.ru : o.en}</span>` +
+        `<span class="obj-tx">${LANG === "ru" && o.ru ? o.ru : o.en}${icons}</span>` +
         (o.count ? `<span class="obj-n">×${o.count}</span>` : "") +
         (o.fir ? `<span class="obj-fir">FiR</span>` : "") +
         `</div>`;
     });
 
     html += `</div>`;
+  }
+
+  if (d.keys && d.keys.length) {
+    html += `<div class="obj-title">🗝 ${t("rs_keys")}</div><div class="itm-grid">${d.keys
+      .map((k) => itemCard({ ...k, count: 0, quests: null }))
+      .join("")}</div>`;
   }
 
   if (d.wiki) {
@@ -1375,31 +1390,82 @@ const plannerEl = document.getElementById("planner");
 
 let activeMap = null;
 
-// Сводка по карте: агрегированные предметы и цели из ДОСТУПНЫХ квестов,
-// без привязки к конкретному квесту. Одинаковые таргеты суммируются.
+// Сводка по карте: агрегированные предметы (с иконками), ключи и цели
+// из ДОСТУПНЫХ квестов, без привязки к конкретному квесту.
 const ITEM_OBJ_TYPES = new Set(["find", "collect", "key"]);
+
+// тултип предмета: имя (EN · RU если есть) + количество/FiR + каким квестам нужен
+function itemTitle(v) {
+  const name = v.n + (v.nRu ? " · " + v.nRu : "");
+  const parts = [(v.count > 1 ? v.count + "× " : "") + name];
+
+  if (!v.nRu && v.ruTxt) parts.push(v.ruTxt);
+  if (v.alts && v.alts.length) parts.push((LANG === "ru" ? "или: " : "or: ") + v.alts.join(", "));
+  if (v.fir) parts.push("FiR");
+  if (v.quests && v.quests.size) parts.push([...v.quests].join(", "));
+
+  return parts.join(" — ");
+}
+
+function itemCard(v) {
+  const title = itemTitle(v).replace(/"/g, "&quot;");
+
+  return (
+    `<div class="itm" title="${title}">` +
+    `<img src="${v.icon}" alt="${title}" loading="lazy" />` +
+    (v.count > 1 ? `<span class="itm-n">×${v.count}</span>` : "") +
+    (v.fir ? `<span class="itm-fir">FiR</span>` : "") +
+    `<span class="itm-cap">${v.s || v.n}</span>` +
+    `</div>`
+  );
+}
 
 function raidSummaryHTML(quests) {
   const items = new Map(),
+    keys = new Map(),
+    textItems = new Map(),
     goals = new Map();
 
   quests
-    .filter((q) => available(q) && q.objectives)
+    .filter((q) => available(q))
     .forEach((q) => {
-      q.objectives.forEach((o) => {
+      (q.keys || []).forEach((k) => {
+        const cur = keys.get(k.n) || { ...k, count: 0, quests: new Set() };
+        cur.quests.add(dn(q));
+        keys.set(k.n, cur);
+      });
+
+      (q.objectives || []).forEach((o) => {
         if (o.optional) return;
 
-        const bucket = ITEM_OBJ_TYPES.has(o.type) ? items : goals;
         const txt = LANG === "ru" && o.ru ? o.ru : o.en;
-        const key = txt + (o.fir ? "|fir" : "");
 
-        const cur = bucket.get(key) || { txt, type: o.type, fir: !!o.fir, count: 0 };
-        cur.count += o.count || 1;
-        bucket.set(key, cur);
+        if (ITEM_OBJ_TYPES.has(o.type)) {
+          if (o.items && o.items.length) {
+            const it = o.items[0];
+            const cur =
+              items.get(it.n) || { ...it, count: 0, fir: false, quests: new Set(), ruTxt: o.ru, alts: [] };
+
+            cur.count += o.count || 1;
+            cur.fir = cur.fir || !!o.fir;
+            cur.quests.add(dn(q));
+            if (o.items.length > 1) cur.alts = o.items.slice(1).map((x) => x.n);
+            items.set(it.n, cur);
+          } else {
+            const key = txt + (o.fir ? "|f" : "");
+            const cur = textItems.get(key) || { txt, type: o.type, fir: !!o.fir, count: 0 };
+            cur.count += o.count || 1;
+            textItems.set(key, cur);
+          }
+        } else {
+          const cur = goals.get(txt) || { txt, type: o.type, count: 0 };
+          cur.count += o.count || 1;
+          goals.set(txt, cur);
+        }
       });
     });
 
-  if (!items.size && !goals.size) return "";
+  if (!items.size && !keys.size && !textItems.size && !goals.size) return "";
 
   const rows = (m) =>
     [...m.values()]
@@ -1415,7 +1481,14 @@ function raidSummaryHTML(quests) {
 
   let h = `<div class="raid-summary">`;
 
-  if (items.size) h += `<div class="obj-title">◈ ${t("rs_items")}</div><div class="objs">${rows(items)}</div>`;
+  if (items.size || textItems.size) {
+    h += `<div class="obj-title">◈ ${t("rs_items")}</div>`;
+    if (items.size) h += `<div class="itm-grid">${[...items.values()].map(itemCard).join("")}</div>`;
+    if (textItems.size) h += `<div class="objs">${rows(textItems)}</div>`;
+  }
+
+  if (keys.size) h += `<div class="obj-title">🗝 ${t("rs_keys")}</div><div class="itm-grid">${[...keys.values()].map(itemCard).join("")}</div>`;
+
   if (goals.size) h += `<div class="obj-title">⌖ ${t("rs_goals")}</div><div class="objs">${rows(goals)}</div>`;
 
   h += `</div>`;

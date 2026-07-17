@@ -1680,6 +1680,84 @@ body.plannerview #planner {
   font-weight: 700;
 }
 
+/* карточки предметов и ключей (иконки tarkov.dev) */
+
+.itm-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg2);
+}
+
+.itm {
+  position: relative;
+  width: 66px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+
+.itm img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--bg0);
+  border: 1px solid var(--line2);
+}
+
+.itm-cap {
+  max-width: 66px;
+  font-size: 9.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itm-n {
+  position: absolute;
+  top: -5px;
+  right: 2px;
+  background: var(--gold);
+  color: var(--bg0);
+  font-size: 9.5px;
+  font-weight: 800;
+  border-radius: 8px;
+  padding: 0 5px;
+  line-height: 14px;
+}
+
+.itm-fir {
+  position: absolute;
+  top: 36px;
+  left: 4px;
+  background: var(--gold);
+  color: var(--bg0);
+  font-size: 7.5px;
+  font-weight: 800;
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 10px;
+  letter-spacing: 0.3px;
+}
+
+.obj-itm {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin: 2px 0 0 6px;
+  border-radius: 4px;
+  background: var(--bg0);
+  border: 1px solid var(--line2);
+}
+
 /* сводка по карте в планировщике рейдов */
 
 .raid-summary {

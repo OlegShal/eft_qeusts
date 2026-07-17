@@ -121,6 +121,7 @@ const DICT = {
     undo_btn: "↩ Отменить",
     toast_done: "Готово",
     toast_undone: "Снято",
+    lvl_next: "на {l}-м: +{n} кв.",
   },
 
   en: {
@@ -223,6 +224,7 @@ const DICT = {
     undo_btn: "↩ Undo",
     toast_done: "Done",
     toast_undone: "Unmarked",
+    lvl_next: "at {l}: +{n} q.",
   },
 };
 
@@ -1914,11 +1916,29 @@ document.addEventListener("click", (e) => {
     };
 });
 
+// мотиватор: ближайший уровень, открывающий новые квесты
+function updateLvlNext() {
+  const el = document.getElementById("lvlnext");
+  const lv = myLevel || 0;
+  const future = DATA.filter((d) => d.minLevel > lv);
+
+  if (!future.length) {
+    el.textContent = "";
+    return;
+  }
+
+  const L = Math.min(...future.map((d) => d.minLevel));
+  const N = future.filter((d) => d.minLevel === L).length;
+
+  el.textContent = t("lvl_next").replace("{l}", L).replace("{n}", N);
+}
+
 function setLevel(v) {
   myLevel = Math.max(0, Math.min(79, Math.round(+v) || 0));
   const inp = document.getElementById("mylevel");
   if (inp) inp.value = myLevel;
   localStorage.setItem("eft_kappa_level", myLevel);
+  updateLvlNext();
   draw();
   persistCloudSoon();
 }
@@ -2421,6 +2441,7 @@ function applyLang() {
   bLabel.event = LANG === "ru" ? "ИВЕНТ" : "EVENT";
 
   updateStats();
+  updateLvlNext();
   draw();
 }
 

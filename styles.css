@@ -822,6 +822,16 @@ input[type="search"] {
   white-space: nowrap;
 }
 
+#lvlnext {
+  font-size: 10.5px;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+#lvlnext:empty {
+  display: none;
+}
+
 .hdr-tools .lvl-step,
 .hdr-tools .theme-sw {
   margin: 0;

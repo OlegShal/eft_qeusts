@@ -760,61 +760,57 @@ function render() {
 
     if (!list.length) return;
 
-    // Determine if we need 2 columns (e.g. if list length > 12)
+    // Динамическое число колонок: ~14 квестов на колонку, максимум 4.
+    // Группы (серии квестов) не разрываются между колонками; заполнение
+    // последовательное, чтобы сохранялся порядок чтения слева направо.
 
-    const use2Cols = list.length > 12;
+    const nCols = Math.max(1, Math.min(4, Math.ceil(list.length / 14)));
 
-    let y1 = TOP,
-      y2 = TOP;
-
-    let prev1 = null,
-      prev2 = null;
-
-    let lastCol = 1;
-
-    const x1 = currentX;
-
-    const x2 = currentX + COL_W + COL_GAP;
-
+    const groups = [];
     list.forEach((d) => {
       const g = groupOf.get(d.id);
-
-      let col = 1;
-
-      if (use2Cols) {
-        if (lastCol === 1 && prev1 !== g && y1 > TOP) col = 2;
-        else if (lastCol === 2 && prev2 !== g) col = 1;
-        else col = lastCol;
-      }
-
-      if (col === 1) {
-        if (prev1 !== null && g !== prev1 && (isSeries.has(g) || isSeries.has(prev1))) y1 += 16;
-
-        pos.set(d.id, { x: x1, y: y1, col: 1 });
-
-        y1 += ROW_H;
-
-        prev1 = g;
-
-        lastCol = 1;
-      } else {
-        if (prev2 !== null && g !== prev2 && (isSeries.has(g) || isSeries.has(prev2))) y2 += 16;
-
-        pos.set(d.id, { x: x2, y: y2, col: 2 });
-
-        y2 += ROW_H;
-
-        prev2 = g;
-
-        lastCol = 2;
-      }
+      if (!groups.length || groups[groups.length - 1].g !== g) groups.push({ g, items: [] });
+      groups[groups.length - 1].items.push(d);
     });
 
-    const colBottom = Math.max(y1, y2);
+    const gap = (g, pg) => (pg !== null && (isSeries.has(g) || isSeries.has(pg)) ? 16 : 8);
+
+    const totalH =
+      list.length * ROW_H + groups.reduce((s, grp, i) => s + (i ? gap(grp.g, groups[i - 1].g) : 0), 0);
+    const targetH = totalH / nCols;
+
+    let col = 0,
+      y = TOP,
+      prevG = null,
+      colBottom = TOP;
+
+    groups.forEach((grp) => {
+      const gh = grp.items.length * ROW_H;
+
+      if (col < nCols - 1 && y > TOP && y - TOP + gh / 2 > targetH) {
+        colBottom = Math.max(colBottom, y);
+        col++;
+        y = TOP;
+        prevG = null;
+      }
+
+      if (prevG !== null) y += gap(grp.g, prevG);
+
+      const x = currentX + col * (COL_W + COL_GAP);
+
+      grp.items.forEach((d) => {
+        pos.set(d.id, { x, y, col });
+        y += ROW_H;
+      });
+
+      prevG = grp.g;
+    });
+
+    colBottom = Math.max(colBottom, y);
 
     maxColH = Math.max(maxColH, colBottom);
 
-    const laneWidth = use2Cols ? COL_W * 2 + COL_GAP : COL_W;
+    const laneWidth = nCols * COL_W + (nCols - 1) * COL_GAP;
 
     const lane = document.createElementNS(SVGNS, "rect");
     lane.setAttribute("class", "collane");

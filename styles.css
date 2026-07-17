@@ -1656,6 +1656,30 @@ body.plannerview #planner {
   background: color-mix(in srgb, var(--gold) 8%, transparent);
 }
 
+/* оптимальный путь по XP */
+
+.path-btn {
+  border-color: var(--goldsoft);
+}
+
+.path-btn .m-nm {
+  color: var(--gold);
+}
+
+.path-num {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--goldsoft);
+  color: var(--gold2);
+  font-size: 12px;
+  font-weight: 700;
+}
+
 /* сводка по карте в планировщике рейдов */
 
 .raid-summary {

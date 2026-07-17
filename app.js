@@ -125,6 +125,10 @@ const DICT = {
     prof_season: "❄ Сезон",
     prof_t: "Профиль прогресса",
     rt_updated: "⇅ Обновлено с другого устройства",
+    path_title: "Оптимальный путь",
+    path_sub: "топ-15 по экспе",
+    path_steps: "шагов",
+    path_hint: "порядок с учётом разблокировок",
   },
 
   en: {
@@ -231,6 +235,10 @@ const DICT = {
     prof_season: "❄ Season",
     prof_t: "Progress profile",
     rt_updated: "⇅ Updated from another device",
+    path_title: "Optimal path",
+    path_sub: "top-15 by XP",
+    path_steps: "steps",
+    path_hint: "order accounts for unlocks",
   },
 };
 
@@ -1414,6 +1422,88 @@ function raidSummaryHTML(quests) {
   return h;
 }
 
+// «Оптимальный путь»: жадный план по XP. На каждом шаге берём доступный
+// квест с максимальным score = свой XP + 0.4 × XP квестов, которые он
+// разблокирует непосредственно. Уровень считаем фиксированным, ивенты
+// не участвуют; при включённом режиме Каппа — только обязательные.
+function xpPathPlan(maxSteps = 15) {
+  const sim = new Set(done);
+  const plan = [];
+  let total = 0;
+
+  const lvlOk = (d) => myLevel === 0 || d.minLevel <= myLevel;
+  const eligible = (d) => !isEvent(d) && lvlOk(d) && (!scopeKappa || isReq(d));
+
+  for (let i = 0; i < maxSteps; i++) {
+    let best = null,
+      bestScore = -1;
+
+    DATA.forEach((d) => {
+      if (sim.has(d.id) || !eligible(d) || !d.requires.every((r) => sim.has(r))) return;
+
+      const unlockXP = (childMap.get(d.id) || []).reduce((s, c) => {
+        const cd = byId.get(c);
+        if (sim.has(c) || !eligible(cd)) return s;
+        return cd.requires.every((r) => sim.has(r) || r === d.id) ? s + sx(cd.exp) : s;
+      }, 0);
+
+      const score = sx(d.exp) + 0.4 * unlockXP;
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = d;
+      }
+    });
+
+    if (!best) break;
+
+    sim.add(best.id);
+    plan.push(best);
+    total += sx(best.exp);
+  }
+
+  return { plan, total };
+}
+
+function renderPathContent() {
+  const { plan, total } = xpPathPlan();
+
+  let html = `<div class="active-map-panel">
+
+<div class="am-header">
+
+  <h1>⚡ ${t("path_title")}</h1>
+
+  <div class="am-sub">${plan.length} ${t("path_steps")} · <b style="color:var(--gold)">${total.toLocaleString("ru-RU")} XP</b> · ${t("path_hint")}</div>
+
+</div>
+
+<div class="am-list">`;
+
+  plan.forEach((q, i) => {
+    html += `<div class="am-quest" data-id="${q.id}">
+
+  <div class="path-num">${i + 1}</div>
+
+  <input type="checkbox" data-act="done" data-id="${q.id}">
+
+  <div class="amq-info">
+
+    <div class="amq-name">${dn(q)}</div>
+
+    <div class="amq-meta"><span style="color:${TC[q.trader]}">${t(q.trader)}</span>${q.map ? " · " + t(q.map) : ""} · ${sx(q.exp).toLocaleString("ru-RU")} XP</div>
+
+  </div>
+
+</div>`;
+  });
+
+  if (!plan.length) html += `<div class="planner-empty">${t("listempty")}</div>`;
+
+  html += `</div></div>`;
+  return html;
+}
+
 function renderPlanner() {
   const avail = DATA.filter((d) => visible(d) && !done.has(d.id));
 
@@ -1456,6 +1546,14 @@ function renderPlanner() {
 
   html += `<div class="side-title">${t("v_planner")}</div>`;
 
+  html += `<div class="map-btn path-btn ${activeMap === "__path" ? "active" : ""}" data-map="__path">
+
+<div class="m-nm">⚡ ${t("path_title")}</div>
+
+<div class="m-st">${t("path_sub")}</div>
+
+  </div>`;
+
   if (global.length > 0) {
     const isAct = activeMap === "global" ? "active" : "";
 
@@ -1490,7 +1588,9 @@ function renderPlanner() {
 
   html += `<div class="planner-content">`;
 
-  if (activeMap === "global" && global.length > 0) {
+  if (activeMap === "__path") {
+    html += renderPathContent();
+  } else if (activeMap === "global" && global.length > 0) {
     html += `<div class="active-map-panel">
 
 <div class="am-header">

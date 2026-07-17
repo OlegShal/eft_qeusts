@@ -109,6 +109,7 @@ const DICT = {
     sync_kappa: "Каппы",
 
     xp_progress: "Общий прогресс",
+    nextup: "▶ Дальше",
   },
 
   en: {
@@ -199,6 +200,7 @@ const DICT = {
     sync_kappa: "Kappa",
 
     xp_progress: "Overall progress",
+    nextup: "▶ Next up",
   },
 };
 
@@ -1545,6 +1547,23 @@ document.getElementById("kappaBtn").addEventListener("click", () => {
   draw();
 });
 
+// пресет «Дальше»: только доступные сейчас, без сделанных
+function syncNextBtn() {
+  document.getElementById("nextBtn").classList.toggle("on", F.hidedone && F.onlyavail);
+}
+
+document.getElementById("nextBtn").addEventListener("click", () => {
+  const on = !(F.hidedone && F.onlyavail);
+
+  F.hidedone = on;
+  F.onlyavail = on;
+
+  document.getElementById("f-hidedone").classList.toggle("on", on);
+  document.getElementById("f-onlyavail").classList.toggle("on", on);
+  syncNextBtn();
+  draw();
+});
+
 document.getElementById("f-req").addEventListener("change", (e) => {
   F.req = e.target.checked;
   draw();
@@ -1576,6 +1595,7 @@ document.getElementById("links").classList.toggle("on", document.body.classList.
 document.getElementById("kappaBtn").classList.toggle("on", scopeKappa);
 document.getElementById("minxp").value = F.minxp;
 document.getElementById("minxpv").textContent = F.minxp ? F.minxp / 1000 + "k" : "0";
+syncNextBtn();
 
 ["f-req", "f-normal", "f-event", "links", "f-hidedone", "f-onlyavail"].forEach((id) => {
   const b = document.getElementById(id);
@@ -1594,6 +1614,7 @@ document.getElementById("minxpv").textContent = F.minxp ? F.minxp / 1000 + "k" :
       else if (id === "f-hidedone") F.hidedone = st;
       else if (id === "f-onlyavail") F.onlyavail = st;
 
+      syncNextBtn();
       draw();
     };
 });

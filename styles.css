@@ -964,6 +964,10 @@ body.links #edges path {
   stroke-width: 2.5;
 }
 
+.node.ndone:not(.dim) {
+  opacity: 0.55;
+}
+
 .node.ndone rect.bg {
   fill: rgba(99, 192, 136, 0.1);
   stroke: var(--good);
@@ -975,14 +979,17 @@ body.links #edges path {
   opacity: 0.7;
 }
 
+/* «доступно сейчас» — главный акцент графа: что игрок может взять прямо сейчас */
+
 .node.navail rect.bg {
-  stroke: #fff;
-  stroke-dasharray: 3 3;
-  stroke-width: 1.5;
+  stroke: var(--gold2);
+  stroke-dasharray: none;
+  stroke-width: 1.8;
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--gold) 70%, transparent));
 }
 
 .node.navail .nm {
-  fill: #fff;
+  fill: var(--gold2);
 }
 
 .node.nhigher {

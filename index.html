@@ -6,7 +6,50 @@
 
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
 
-    <title>EFT · Kappa Quest Planner</title>
+    <title>EFT · Quest Planner — граф квестов Escape from Tarkov, Каппа, цели и предметы</title>
+
+    <meta
+      name="description"
+      content="Интерактивный планировщик квестов Escape from Tarkov: граф зависимостей всех квестов, прогресс до Каппы, цели и предметы с иконками, оптимальный путь по экспе, планировщик рейдов по картам. PVP, PVE и сезонные профили, облачная синхронизация."
+    />
+
+    <meta
+      name="keywords"
+      content="escape from tarkov, тарков, квесты таркова, каппа, kappa container, tarkov quests, quest tree, дерево квестов, планировщик квестов, eft quest planner, tarkov kappa guide"
+    />
+
+    <link rel="canonical" href="https://eft-qeusts.vercel.app/" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="EFT Quest Planner" />
+    <meta property="og:title" content="EFT · Quest Planner — граф квестов Escape from Tarkov" />
+    <meta
+      property="og:description"
+      content="Граф всех квестов Таркова: зависимости, цели, предметы и ключи, путь до Каппы и оптимальная прокачка по экспе."
+    />
+    <meta property="og:url" content="https://eft-qeusts.vercel.app/" />
+    <meta property="og:image" content="https://eft-qeusts.vercel.app/og.png" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:locale:alternate" content="en_US" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="EFT · Quest Planner" />
+    <meta name="twitter:description" content="Граф всех квестов Escape from Tarkov: зависимости, цели, предметы, путь до Каппы." />
+    <meta name="twitter:image" content="https://eft-qeusts.vercel.app/og.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "EFT Quest Planner",
+        "url": "https://eft-qeusts.vercel.app/",
+        "applicationCategory": "GameApplication",
+        "operatingSystem": "Any",
+        "inLanguage": ["ru", "en"],
+        "description": "Интерактивный планировщик квестов Escape from Tarkov: граф зависимостей, цели и предметы квестов, прогресс до контейнера Каппа, оптимальный путь прокачки.",
+        "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+      }
+    </script>
 
     <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 
@@ -18,39 +61,44 @@
   <body class="links">
     <div id="app">
       <header>
-        <span class="brand">EFT · <b>Kappa</b> Planner</span>
+        <!-- ряд 1: что смотрим (вид, версия, профиль, пресеты) + прогресс -->
+        <div class="hdr-row">
+          <span class="brand">EFT · <b>Quest</b> Planner</span>
 
-        <div class="switch" id="switch">
-          <button data-mode="old">1.0.6.5<small data-t="old">СТАРЫЙ</small></button>
+          <div class="switch vsw" id="viewsw">
+            <button data-view="graph" class="on" data-t="v_graph">Граф</button>
 
-          <button data-mode="new" class="on">1.1.0.0<small data-t="new">НОВЫЙ</small></button>
+            <button data-view="list" data-t="v_list">Список</button>
+
+            <button data-view="planner" data-t="v_planner">Рейды</button>
+          </div>
+
+          <div class="switch" id="switch">
+            <button data-mode="old">1.0.6.5<small data-t="old">СТАРЫЙ</small></button>
+
+            <button data-mode="new" class="on">1.1.0.0<small data-t="new">НОВЫЙ</small></button>
+          </div>
+
+          <div class="langsw" id="profsw" data-tt="prof_t" title="Профиль прогресса">
+            <button data-prof="pvp" class="on">PVP</button>
+
+            <button data-prof="pve">PVE</button>
+
+            <button data-prof="season" data-t="prof_season">❄ Сезон</button>
+          </div>
+
+          <button class="btn kbtn" id="kappaBtn" data-t="kappa">🎯 Каппа</button>
+
+          <button class="btn kbtn" id="nextBtn" data-t="nextup" title="Только доступные сейчас, без сделанных">▶ Дальше</button>
+
+          <div class="spacer"></div>
+
+          <div class="stats" id="stats"></div>
         </div>
 
-        <div class="switch vsw" id="viewsw">
-          <button data-view="graph" class="on" data-t="v_graph">Граф</button>
-
-          <button data-view="list" data-t="v_list">Список</button>
-
-          <button data-view="planner" data-t="v_planner">Рейды</button>
-        </div>
-
-        <div class="langsw" id="profsw" data-tt="prof_t" title="Профиль прогресса">
-          <button data-prof="pvp" class="on">PVP</button>
-
-          <button data-prof="pve">PVE</button>
-
-          <button data-prof="season" data-t="prof_season">❄ Сезон</button>
-        </div>
-
-        <button class="btn kbtn" id="kappaBtn" data-t="kappa">🎯 Каппа</button>
-
-        <button class="btn kbtn" id="nextBtn" data-t="nextup" title="Только доступные сейчас, без сделанных">▶ Дальше</button>
-
-        <div class="stats" id="stats"></div>
-
-        <div class="spacer"></div>
-
-        <div class="hdr-tools">
+        <!-- ряд 2: персональные настройки, поиск, аккаунт -->
+        <div class="hdr-row">
+          <div class="hdr-tools">
           <div class="hdr-level">
             <span class="hdr-lbl" data-t="mylevel_short">Ур.</span>
             <div class="lvl-step">
@@ -70,27 +118,28 @@
           </div>
         </div>
 
-        <div class="langsw" id="langsw">
-          <button data-lang="ru" class="on">RU</button>
+          <div class="ctrl">
+            <input type="search" id="search" data-tph="search" placeholder="Поиск квеста…" autocomplete="off" />
+          </div>
 
-          <button data-lang="en">EN</button>
-        </div>
+          <div class="spacer"></div>
 
-        <div class="ctrl">
-          <input type="search" id="search" data-tph="search" placeholder="Поиск квеста…" autocomplete="off" />
-        </div>
+          <div class="langsw" id="langsw">
+            <button data-lang="ru" class="on">RU</button>
 
-        <button class="btn" id="fit" data-t="fit">⤢ Весь граф</button>
+            <button data-lang="en">EN</button>
+          </div>
 
-        <div class="auth-ui" id="auth-ui">
-          <button id="btnLogin" class="btn" data-t="login">Вход (Cloud)</button>
+          <div class="auth-ui" id="auth-ui">
+            <button id="btnLogin" class="btn" data-t="login">Вход (Cloud)</button>
 
-          <div id="userProfile" style="display: none">
-            <span id="syncState"></span>
+            <div id="userProfile" style="display: none">
+              <span id="syncState"></span>
 
-            <span id="userName">User</span>
+              <span id="userName">User</span>
 
-            <button id="btnLogout" class="btn" style="padding: 4px 8px" data-t="logout">Выход</button>
+              <button id="btnLogout" class="btn" style="padding: 4px 8px" data-t="logout">Выход</button>
+            </div>
           </div>
         </div>
 
@@ -106,8 +155,6 @@
         <div class="f-group p-sec" id="ps-search">
           <div class="f-title" data-t="ps_search">Поиск</div>
         </div>
-
-        <div id="reqstrip"></div>
 
         <div id="bar">
           <div class="f-group">
@@ -237,6 +284,38 @@
       <span id="toastMsg"></span>
 
       <button id="toastUndo" data-t="undo_btn">↩ Отменить</button>
+    </div>
+
+    <div id="accModal" class="lg-overlay" style="display: none">
+      <div class="lg-card">
+        <button class="lg-x" id="accClose" aria-label="close">✕</button>
+
+        <h3 data-t="acc_title">Профиль</h3>
+
+        <p class="lg-sub" id="accEmail"></p>
+
+        <label class="acc-lbl" data-t="acc_nick">Никнейм</label>
+        <input type="text" id="accNick" maxlength="24" autocomplete="nickname" />
+
+        <label class="acc-lbl" data-t="acc_pass">Новый пароль</label>
+        <input type="password" id="accPass" autocomplete="new-password" placeholder="••••••" />
+
+        <button class="lg-primary" id="accSave" data-t="acc_save">Сохранить</button>
+
+        <div class="lg-err" id="accMsg"></div>
+
+        <div class="lg-or"><span data-t="acc_danger">сброс прогресса</span></div>
+
+        <div class="acc-resets">
+          <button class="lg-secondary acc-reset" data-slot="pvp">PVP</button>
+
+          <button class="lg-secondary acc-reset" data-slot="pve">PVE</button>
+
+          <button class="lg-secondary acc-reset" data-slot="season" data-t="prof_season">❄ Сезон</button>
+        </div>
+
+        <p class="lg-sub acc-note" data-t="acc_reset_note">Сброс очистит отметки и уровень выбранного профиля — локально и в облаке.</p>
+      </div>
     </div>
 
     <div id="syncModal" class="lg-overlay" style="display: none">

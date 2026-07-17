@@ -70,7 +70,19 @@ const DICT = {
     or: "или",
     google_btn: "Войти через Google",
     lg_need: "Введите email и пароль",
-    lg_confirm: "Аккаунт создан. Проверьте почту и подтвердите email.",
+    lg_confirm: "Аккаунт создан. Подтвердите email — письмо могло попасть в спам (доходит до нескольких минут).",
+    err_creds: "Неверный email или пароль. Нет аккаунта? Нажмите «Создать аккаунт».",
+    err_unconfirmed: "Email не подтверждён — найдите письмо (проверьте спам) и перейдите по ссылке.",
+    err_rate: "Слишком много попыток — подождите минуту и повторите.",
+    acc_title: "Профиль",
+    acc_nick: "Никнейм",
+    acc_pass: "Новый пароль",
+    acc_save: "Сохранить",
+    acc_saved: "Сохранено ✓",
+    acc_danger: "сброс прогресса",
+    acc_reset_note: "Сброс очистит отметки и уровень выбранного профиля — локально и в облаке.",
+    acc_reset_confirm: "Сбросить весь прогресс профиля {p}? Это действие необратимо.",
+    acc_reset_done: "Профиль {p} сброшен",
 
     c_quest: "Квест",
     c_trader: "Торговец",
@@ -117,6 +129,7 @@ const DICT = {
     objectives: "Цели",
     wiki: "Открыть на вики",
     rs_items: "Нужны предметы",
+    rs_keys: "Ключи",
     rs_goals: "Цели на карте",
     undo_btn: "↩ Отменить",
     toast_done: "Готово",
@@ -180,7 +193,19 @@ const DICT = {
     or: "or",
     google_btn: "Continue with Google",
     lg_need: "Enter email and password",
-    lg_confirm: "Account created. Check your inbox and confirm your email.",
+    lg_confirm: "Account created. Confirm your email — the message may land in spam (can take a few minutes).",
+    err_creds: "Wrong email or password. No account yet? Use «Create account».",
+    err_unconfirmed: "Email not confirmed — find the message (check spam) and follow the link.",
+    err_rate: "Too many attempts — wait a minute and retry.",
+    acc_title: "Account",
+    acc_nick: "Nickname",
+    acc_pass: "New password",
+    acc_save: "Save",
+    acc_saved: "Saved ✓",
+    acc_danger: "reset progress",
+    acc_reset_note: "Reset clears the chosen profile's quests and level — locally and in the cloud.",
+    acc_reset_confirm: "Reset ALL progress of the {p} profile? This cannot be undone.",
+    acc_reset_done: "{p} profile reset",
 
     c_quest: "Quest",
     c_trader: "Trader",
@@ -227,6 +252,7 @@ const DICT = {
     objectives: "Objectives",
     wiki: "Open wiki",
     rs_items: "Items needed",
+    rs_keys: "Keys",
     rs_goals: "Objectives here",
     undo_btn: "↩ Undo",
     toast_done: "Done",
@@ -663,17 +689,6 @@ function updateStats() {
   document.getElementById("xpbar").title =
     `${t("xp_progress")}: ${doneCnt} / ${DATA.length} ${t("q")} · ${fmt(earnedXP)} / ${fmt(totalXP)} XP (${Math.round(xpPct)}%)`;
 
-  const strip = document.getElementById("reqstrip");
-
-  if (MODE === "new") {
-    strip.style.display = "flex";
-
-    strip.innerHTML =
-      `<b>${t("collector")}</b>` +
-      `<span class="pill">LL4: ${["Therapist", "Prapor", "Peacekeeper", "Mechanic", "Jaeger", "Skier", "Ragman"].map((x) => t(x)).join(" · ")}</span>` +
-      `<span class="pill">${t("fencerep")}</span><span class="pill">${t("level")}</span>` +
-      `<span class="pill">${t("keys")} ${newReq.size} ${t("chain")}</span>`;
-  } else strip.style.display = "none";
 }
 
 function visible(d) {
@@ -745,61 +760,57 @@ function render() {
 
     if (!list.length) return;
 
-    // Determine if we need 2 columns (e.g. if list length > 12)
+    // Динамическое число колонок: ~14 квестов на колонку, максимум 4.
+    // Группы (серии квестов) не разрываются между колонками; заполнение
+    // последовательное, чтобы сохранялся порядок чтения слева направо.
 
-    const use2Cols = list.length > 12;
+    const nCols = Math.max(1, Math.min(4, Math.ceil(list.length / 14)));
 
-    let y1 = TOP,
-      y2 = TOP;
-
-    let prev1 = null,
-      prev2 = null;
-
-    let lastCol = 1;
-
-    const x1 = currentX;
-
-    const x2 = currentX + COL_W + COL_GAP;
-
+    const groups = [];
     list.forEach((d) => {
       const g = groupOf.get(d.id);
-
-      let col = 1;
-
-      if (use2Cols) {
-        if (lastCol === 1 && prev1 !== g && y1 > TOP) col = 2;
-        else if (lastCol === 2 && prev2 !== g) col = 1;
-        else col = lastCol;
-      }
-
-      if (col === 1) {
-        if (prev1 !== null && g !== prev1 && (isSeries.has(g) || isSeries.has(prev1))) y1 += 16;
-
-        pos.set(d.id, { x: x1, y: y1, col: 1 });
-
-        y1 += ROW_H;
-
-        prev1 = g;
-
-        lastCol = 1;
-      } else {
-        if (prev2 !== null && g !== prev2 && (isSeries.has(g) || isSeries.has(prev2))) y2 += 16;
-
-        pos.set(d.id, { x: x2, y: y2, col: 2 });
-
-        y2 += ROW_H;
-
-        prev2 = g;
-
-        lastCol = 2;
-      }
+      if (!groups.length || groups[groups.length - 1].g !== g) groups.push({ g, items: [] });
+      groups[groups.length - 1].items.push(d);
     });
 
-    const colBottom = Math.max(y1, y2);
+    const gap = (g, pg) => (pg !== null && (isSeries.has(g) || isSeries.has(pg)) ? 16 : 8);
+
+    const totalH =
+      list.length * ROW_H + groups.reduce((s, grp, i) => s + (i ? gap(grp.g, groups[i - 1].g) : 0), 0);
+    const targetH = totalH / nCols;
+
+    let col = 0,
+      y = TOP,
+      prevG = null,
+      colBottom = TOP;
+
+    groups.forEach((grp) => {
+      const gh = grp.items.length * ROW_H;
+
+      if (col < nCols - 1 && y > TOP && y - TOP + gh / 2 > targetH) {
+        colBottom = Math.max(colBottom, y);
+        col++;
+        y = TOP;
+        prevG = null;
+      }
+
+      if (prevG !== null) y += gap(grp.g, prevG);
+
+      const x = currentX + col * (COL_W + COL_GAP);
+
+      grp.items.forEach((d) => {
+        pos.set(d.id, { x, y, col });
+        y += ROW_H;
+      });
+
+      prevG = grp.g;
+    });
+
+    colBottom = Math.max(colBottom, y);
 
     maxColH = Math.max(maxColH, colBottom);
 
-    const laneWidth = use2Cols ? COL_W * 2 + COL_GAP : COL_W;
+    const laneWidth = nCols * COL_W + (nCols - 1) * COL_GAP;
 
     const lane = document.createElementNS(SVGNS, "rect");
     lane.setAttribute("class", "collane");
@@ -1078,15 +1089,28 @@ function showInfo(id) {
     html += `<div class="obj-title">${t("objectives")}</div><div class="objs">`;
 
     d.objectives.forEach((o) => {
+      const icons = (o.items || [])
+        .map((it) => {
+          const tt = (it.n + (it.nRu ? " · " + it.nRu : "")).replace(/"/g, "&quot;");
+          return `<img class="obj-itm" src="${it.icon}" alt="${tt}" title="${tt}" loading="lazy" />`;
+        })
+        .join("");
+
       html +=
         `<div class="obj${o.optional ? " obj-opt" : ""}"><span class="obj-ic">${OBJ_ICON[o.type] || "•"}</span>` +
-        `<span class="obj-tx">${LANG === "ru" && o.ru ? o.ru : o.en}</span>` +
+        `<span class="obj-tx">${LANG === "ru" && o.ru ? o.ru : o.en}${icons}</span>` +
         (o.count ? `<span class="obj-n">×${o.count}</span>` : "") +
         (o.fir ? `<span class="obj-fir">FiR</span>` : "") +
         `</div>`;
     });
 
     html += `</div>`;
+  }
+
+  if (d.keys && d.keys.length) {
+    html += `<div class="obj-title">🗝 ${t("rs_keys")}</div><div class="itm-grid">${d.keys
+      .map((k) => itemCard({ ...k, count: 0, quests: null }))
+      .join("")}</div>`;
   }
 
   if (d.wiki) {
@@ -1375,31 +1399,82 @@ const plannerEl = document.getElementById("planner");
 
 let activeMap = null;
 
-// Сводка по карте: агрегированные предметы и цели из ДОСТУПНЫХ квестов,
-// без привязки к конкретному квесту. Одинаковые таргеты суммируются.
+// Сводка по карте: агрегированные предметы (с иконками), ключи и цели
+// из ДОСТУПНЫХ квестов, без привязки к конкретному квесту.
 const ITEM_OBJ_TYPES = new Set(["find", "collect", "key"]);
+
+// тултип предмета: имя (EN · RU если есть) + количество/FiR + каким квестам нужен
+function itemTitle(v) {
+  const name = v.n + (v.nRu ? " · " + v.nRu : "");
+  const parts = [(v.count > 1 ? v.count + "× " : "") + name];
+
+  if (!v.nRu && v.ruTxt) parts.push(v.ruTxt);
+  if (v.alts && v.alts.length) parts.push((LANG === "ru" ? "или: " : "or: ") + v.alts.join(", "));
+  if (v.fir) parts.push("FiR");
+  if (v.quests && v.quests.size) parts.push([...v.quests].join(", "));
+
+  return parts.join(" — ");
+}
+
+function itemCard(v) {
+  const title = itemTitle(v).replace(/"/g, "&quot;");
+
+  return (
+    `<div class="itm" title="${title}">` +
+    `<img src="${v.icon}" alt="${title}" loading="lazy" />` +
+    (v.count > 1 ? `<span class="itm-n">×${v.count}</span>` : "") +
+    (v.fir ? `<span class="itm-fir">FiR</span>` : "") +
+    `<span class="itm-cap">${v.s || v.n}</span>` +
+    `</div>`
+  );
+}
 
 function raidSummaryHTML(quests) {
   const items = new Map(),
+    keys = new Map(),
+    textItems = new Map(),
     goals = new Map();
 
   quests
-    .filter((q) => available(q) && q.objectives)
+    .filter((q) => available(q))
     .forEach((q) => {
-      q.objectives.forEach((o) => {
+      (q.keys || []).forEach((k) => {
+        const cur = keys.get(k.n) || { ...k, count: 0, quests: new Set() };
+        cur.quests.add(dn(q));
+        keys.set(k.n, cur);
+      });
+
+      (q.objectives || []).forEach((o) => {
         if (o.optional) return;
 
-        const bucket = ITEM_OBJ_TYPES.has(o.type) ? items : goals;
         const txt = LANG === "ru" && o.ru ? o.ru : o.en;
-        const key = txt + (o.fir ? "|fir" : "");
 
-        const cur = bucket.get(key) || { txt, type: o.type, fir: !!o.fir, count: 0 };
-        cur.count += o.count || 1;
-        bucket.set(key, cur);
+        if (ITEM_OBJ_TYPES.has(o.type)) {
+          if (o.items && o.items.length) {
+            const it = o.items[0];
+            const cur =
+              items.get(it.n) || { ...it, count: 0, fir: false, quests: new Set(), ruTxt: o.ru, alts: [] };
+
+            cur.count += o.count || 1;
+            cur.fir = cur.fir || !!o.fir;
+            cur.quests.add(dn(q));
+            if (o.items.length > 1) cur.alts = o.items.slice(1).map((x) => x.n);
+            items.set(it.n, cur);
+          } else {
+            const key = txt + (o.fir ? "|f" : "");
+            const cur = textItems.get(key) || { txt, type: o.type, fir: !!o.fir, count: 0 };
+            cur.count += o.count || 1;
+            textItems.set(key, cur);
+          }
+        } else {
+          const cur = goals.get(txt) || { txt, type: o.type, count: 0 };
+          cur.count += o.count || 1;
+          goals.set(txt, cur);
+        }
       });
     });
 
-  if (!items.size && !goals.size) return "";
+  if (!items.size && !keys.size && !textItems.size && !goals.size) return "";
 
   const rows = (m) =>
     [...m.values()]
@@ -1415,7 +1490,14 @@ function raidSummaryHTML(quests) {
 
   let h = `<div class="raid-summary">`;
 
-  if (items.size) h += `<div class="obj-title">◈ ${t("rs_items")}</div><div class="objs">${rows(items)}</div>`;
+  if (items.size || textItems.size) {
+    h += `<div class="obj-title">◈ ${t("rs_items")}</div>`;
+    if (items.size) h += `<div class="itm-grid">${[...items.values()].map(itemCard).join("")}</div>`;
+    if (textItems.size) h += `<div class="objs">${rows(textItems)}</div>`;
+  }
+
+  if (keys.size) h += `<div class="obj-title">🗝 ${t("rs_keys")}</div><div class="itm-grid">${[...keys.values()].map(itemCard).join("")}</div>`;
+
   if (goals.size) h += `<div class="obj-title">⌖ ${t("rs_goals")}</div><div class="objs">${rows(goals)}</div>`;
 
   h += `</div>`;
@@ -1432,7 +1514,12 @@ function xpPathPlan(maxSteps = 15) {
   let total = 0;
 
   const lvlOk = (d) => myLevel === 0 || d.minLevel <= myLevel;
-  const eligible = (d) => !isEvent(d) && lvlOk(d) && (!scopeKappa || isReq(d));
+
+  // Скупщик, БТРщик и Реф — вне плана: их квесты завязаны на репутацию,
+  // деньги и события, XP-порядок для них не имеет смысла
+  const PATH_EXCLUDE = new Set(["Fence", "BTR Driver", "Ref"]);
+
+  const eligible = (d) => !isEvent(d) && !PATH_EXCLUDE.has(d.trader) && lvlOk(d) && (!scopeKappa || isReq(d));
 
   for (let i = 0; i < maxSteps; i++) {
     let best = null,
@@ -1773,6 +1860,12 @@ stage.addEventListener("pointerdown", (e) => {
   if (e.target.closest("#info") || e.target.closest("#minimap")) return;
 
   pts.set(e.pointerId, e);
+
+  // capture: pointerup долетит до stage, даже если курсор ушёл за его
+  // пределы — иначе пан «залипал» после отпускания кнопки снаружи
+  try {
+    stage.setPointerCapture(e.pointerId);
+  } catch (err) {}
 
   if (pts.size === 1) {
     panP = { x: e.clientX, y: e.clientY, tx, ty };
@@ -2146,8 +2239,6 @@ document.getElementById("f-onlyavail").addEventListener("change", (e) => {
   draw();
 });
 
-document.getElementById("fit").onclick = fit;
-
 document.getElementById("zfit").onclick = fit;
 
 document.getElementById("zin").onclick = () => {
@@ -2423,13 +2514,93 @@ function applyAuthUI() {
 
     prof.style.display = "flex";
 
-    document.getElementById("userName").textContent = sessionUser.email.split("@")[0];
+    document.getElementById("userName").textContent =
+      sessionUser.user_metadata?.nickname || sessionUser.email.split("@")[0];
   } else {
     login.style.display = "block";
 
     prof.style.display = "none";
   }
 }
+
+// ---- диалог профиля: ник, пароль, сброс слотов ----
+
+const accModal = document.getElementById("accModal");
+const accMsg = document.getElementById("accMsg");
+
+document.getElementById("userName").onclick = () => {
+  if (!sessionUser) return;
+  document.getElementById("accEmail").textContent = sessionUser.email;
+  document.getElementById("accNick").value =
+    sessionUser.user_metadata?.nickname || sessionUser.email.split("@")[0];
+  document.getElementById("accPass").value = "";
+  accMsg.textContent = "";
+  accMsg.style.color = "var(--bad)";
+  accModal.style.display = "flex";
+};
+
+document.getElementById("accClose").onclick = () => (accModal.style.display = "none");
+
+accModal.addEventListener("click", (e) => {
+  if (e.target === accModal) accModal.style.display = "none";
+});
+
+document.getElementById("accSave").onclick = async () => {
+  if (!sbClient || !sessionUser) return;
+
+  const nick = document.getElementById("accNick").value.trim();
+  const pass = document.getElementById("accPass").value;
+
+  const payload = {};
+  if (nick && nick !== (sessionUser.user_metadata?.nickname || "")) payload.data = { nickname: nick };
+  if (pass) payload.password = pass;
+
+  if (!payload.data && !payload.password) {
+    accModal.style.display = "none";
+    return;
+  }
+
+  accMsg.style.color = "var(--bad)";
+  accMsg.textContent = "…";
+
+  const { data, error } = await sbClient.auth.updateUser(payload);
+
+  if (error) {
+    accMsg.textContent = error.message;
+    return;
+  }
+
+  if (data?.user) sessionUser = data.user;
+  applyAuthUI();
+
+  accMsg.style.color = "var(--good)";
+  accMsg.textContent = t("acc_saved");
+};
+
+document.querySelectorAll(".acc-reset").forEach((b) => {
+  b.onclick = () => {
+    const slot = b.dataset.slot;
+
+    if (!confirm(t("acc_reset_confirm").replace("{p}", slot.toUpperCase()))) return;
+
+    writeSlot(slot, { done: [], mylevel: 0 });
+
+    if (slot === activeProfile) {
+      done = new Set();
+      myLevel = 0;
+      document.getElementById("mylevel").value = 0;
+      updateStats();
+      updateLvlNext();
+      draw();
+      if (pinned) showInfo(pinned);
+    }
+
+    persistCloudSoon();
+
+    accMsg.style.color = "var(--good)";
+    accMsg.textContent = t("acc_reset_done").replace("{p}", slot.toUpperCase());
+  };
+});
 
 const loginModal = document.getElementById("loginModal");
 
@@ -2479,7 +2650,13 @@ async function doPassword(mode) {
       : await sbClient.auth.signInWithPassword({ email, password: pass });
 
   if (res.error) {
-    lgErr.textContent = res.error.message;
+    const m = res.error.message || "";
+
+    if (/Invalid login credentials/i.test(m)) lgErr.textContent = t("err_creds");
+    else if (/Email not confirmed/i.test(m)) lgErr.textContent = t("err_unconfirmed");
+    else if (/rate limit/i.test(m)) lgErr.textContent = t("err_rate");
+    else lgErr.textContent = m;
+
     return;
   }
 

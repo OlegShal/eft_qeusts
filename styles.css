@@ -129,6 +129,17 @@ header {
   flex-wrap: wrap;
 }
 
+/* два осмысленных ряда шапки на десктопе; на мобиле display:contents
+   возвращает детей в общий flex-поток компактной шапки */
+.hdr-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .brand {
   font-family: var(--font-brand);
   font-size: 14px;
@@ -539,6 +550,39 @@ header {
 #userName {
   font-weight: 700;
   color: var(--gold);
+  cursor: pointer;
+}
+
+#userName:hover {
+  text-decoration: underline;
+}
+
+.acc-lbl {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-top: 2px;
+  text-align: left;
+}
+
+.acc-resets {
+  display: flex;
+  gap: 8px;
+}
+
+.acc-resets button {
+  flex: 1;
+}
+
+.acc-resets button:hover {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.acc-note {
+  margin: 0;
 }
 
 #syncState {
@@ -917,29 +961,6 @@ input[type="search"] {
   width: 10px;
   height: 10px;
   border-radius: 3px;
-}
-
-#reqstrip {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 14px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--gold) 12%, transparent), color-mix(in srgb, var(--gold) 2%, transparent));
-  border-bottom: 1px solid var(--goldsoft);
-  font-size: 11.5px;
-  color: var(--gold2);
-  flex-wrap: wrap;
-}
-
-#reqstrip b {
-  color: var(--gold2);
-}
-
-#reqstrip .pill {
-  border: 1px solid var(--goldsoft);
-  border-radius: 20px;
-  padding: 2px 9px;
-  background: rgba(0, 0, 0, 0.2);
 }
 
 /* views */
@@ -1680,6 +1701,84 @@ body.plannerview #planner {
   font-weight: 700;
 }
 
+/* карточки предметов и ключей (иконки tarkov.dev) */
+
+.itm-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg2);
+}
+
+.itm {
+  position: relative;
+  width: 66px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+
+.itm img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  border-radius: 6px;
+  background: var(--bg0);
+  border: 1px solid var(--line2);
+}
+
+.itm-cap {
+  max-width: 66px;
+  font-size: 9.5px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.itm-n {
+  position: absolute;
+  top: -5px;
+  right: 2px;
+  background: var(--gold);
+  color: var(--bg0);
+  font-size: 9.5px;
+  font-weight: 800;
+  border-radius: 8px;
+  padding: 0 5px;
+  line-height: 14px;
+}
+
+.itm-fir {
+  position: absolute;
+  top: 36px;
+  left: 4px;
+  background: var(--gold);
+  color: var(--bg0);
+  font-size: 7.5px;
+  font-weight: 800;
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 10px;
+  letter-spacing: 0.3px;
+}
+
+.obj-itm {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin: 2px 0 0 6px;
+  border-radius: 4px;
+  background: var(--bg0);
+  border: 1px solid var(--line2);
+}
+
 /* сводка по карте в планировщике рейдов */
 
 .raid-summary {
@@ -1842,6 +1941,10 @@ body.plannerview #minimap {
 
   /* шапка — всегда одна компактная строка: ☰ Меню | вид | ▶ Дальше.
      Остальные элементы JS переносит в секции #panel (см. relocateControls) */
+
+  .hdr-row {
+    display: contents;
+  }
 
   #togglePanel {
     order: -3;
@@ -2009,20 +2112,6 @@ body.plannerview #minimap {
     font-weight: 700;
     cursor: pointer;
     z-index: 10;
-  }
-
-  #reqstrip {
-    font-size: 12px;
-    padding: 12px 2px;
-    border: 0;
-    flex-direction: column;
-    align-items: stretch;
-    min-width: 0;
-  }
-
-  #reqstrip .pill {
-    white-space: normal;
-    overflow-wrap: anywhere;
   }
 
   #bar,

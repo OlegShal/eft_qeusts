@@ -94,14 +94,23 @@ for (const q of tasks) {
 
   if (e.wikiLink) q.wiki = e.wikiLink;
 
-  // требуемые ключи (для чек-листа «Сборы в рейд»)
-  const keys = (e.neededKeys || []).flatMap((nk) =>
-    (nk.keys || []).map((k) => ({ ...packItem(k), ...(nk.map?.name ? { map: nk.map.name } : {}) })),
+  const r = ruMap.get(q.id);
+
+  // требуемые ключи (для чек-листа «Сборы в рейд»), с русским именем в nRu
+  const ruKeys = (r?.neededKeys || []).flatMap((nk) => nk.keys || []);
+
+  const keys = (e.neededKeys || []).flatMap((nk, gi) =>
+    (nk.keys || []).map((k, ki) => {
+      const out = { ...packItem(k), ...(nk.map?.name ? { map: nk.map.name } : {}) };
+      const rk = (r?.neededKeys || [])[gi]?.keys?.[ki] || ruKeys.find((x) => x && x.name && x.iconLink === k.iconLink);
+      if (rk?.name && rk.name !== k.name) out.nRu = rk.name;
+      return out;
+    }),
   );
   if (keys.length) q.keys = keys;
   else delete q.keys;
 
-  const ruObjs = new Map((ruMap.get(q.id)?.objectives || []).map((o) => [o.id, o]));
+  const ruObjs = new Map((r?.objectives || []).map((o) => [o.id, o]));
 
   const objs = (e.objectives || [])
     .filter((o) => o.description && o.type !== "taskStatus")
@@ -115,7 +124,14 @@ for (const q of tasks) {
       if (o.foundInRaid) out.fir = true;
       if (o.optional) out.optional = true;
 
-      if (o.items?.length) out.items = o.items.slice(0, MAX_ALT_ITEMS).map(packItem);
+      if (o.items?.length) {
+        const ruItems = ruObjs.get(o.id)?.items || [];
+        out.items = o.items.slice(0, MAX_ALT_ITEMS).map((it, i) => {
+          const packed = packItem(it);
+          if (ruItems[i]?.name && ruItems[i].name !== it.name) packed.nRu = ruItems[i].name;
+          return packed;
+        });
+      }
 
       return out;
     });

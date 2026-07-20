@@ -88,7 +88,7 @@ const DICT = {
     c_trader: "Торговец",
     c_lvl: "Ур.",
     c_xp: "XP",
-    c_unlocks: "Открывает",
+    c_unlocks: "Польза",
     c_status: "Статус",
     listempty: "Ничего не найдено под фильтры",
 
@@ -102,6 +102,8 @@ const DICT = {
     i_ch: "Всего в цепочке",
     i_chxp: "Экспа всей цепочки",
     i_unl: "Открывает далее",
+    i_useful: "Полезность",
+    useful_tip: "Полезность = экспа квеста + экспа квестов, что он открывает вниз по цепочке и достижимых в ближайшее время (уровень до ~×1.2 от твоего). Далёкие линейки не в счёт. Зависит от твоего уровня. 100 = самый «отпирающий» сейчас.",
     filters: "☰ Меню",
     ps_search: "Поиск",
     ps_mode: "Версия и охват",
@@ -211,7 +213,7 @@ const DICT = {
     c_trader: "Trader",
     c_lvl: "Lvl",
     c_xp: "XP",
-    c_unlocks: "Unlocks",
+    c_unlocks: "Value",
     c_status: "Status",
     listempty: "Nothing matches the filters",
 
@@ -225,6 +227,8 @@ const DICT = {
     i_ch: "Chain total",
     i_chxp: "Chain XP",
     i_unl: "Unlocks next",
+    i_useful: "Usefulness",
+    useful_tip: "Usefulness = quest XP + XP of quests it unlocks down the chain that are reachable soon (level up to ~1.2× yours). Far-off lines don't count. Depends on your level. 100 = the most gating quest right now.",
     filters: "☰ Menu",
     ps_search: "Search",
     ps_mode: "Version & scope",
@@ -368,7 +372,51 @@ const depth = new Map();
   DATA.forEach((d) => dep(d.id));
 })();
 
-const descCount = new Map(DATA.map((d) => [d.id, descendants(d.id).size]));
+const descList = new Map(DATA.map((d) => [d.id, [...descendants(d.id)]]));
+
+const descCount = new Map(DATA.map((d) => [d.id, descList.get(d.id).length]));
+
+// ---- коэффициент полезности (относительно текущего уровня) ----
+// полезность = экспа квеста + экспа его транзитивных потомков, НО только тех, что достижимы
+// «в ближайшее время» — с minLevel в пределах горизонта уровня. Далёкие линейки (напр. на 60-й
+// при твоём 20-м) не считаются полезными сейчас. Пересчитывается лениво при смене уровня.
+// Горизонт: при 20 lvl смотрим до 24 (×1.2, с добавкой на ранние уровни). myLevel 0 = без границы.
+function lvlHorizon() {
+  return myLevel <= 0 ? Infinity : Math.max(myLevel + 4, Math.round(myLevel * 1.2));
+}
+
+let _uLvl = null,
+  _uMax = 1;
+
+const _uXP = new Map();
+
+function ensureUseful() {
+  if (_uLvl === myLevel) return;
+  _uLvl = myLevel;
+  const hz = lvlHorizon();
+  let mx = 1;
+  DATA.forEach((d) => {
+    let x = d.exp;
+    descList.get(d.id).forEach((c) => {
+      const cd = byId.get(c);
+      if (cd.minLevel <= hz) x += cd.exp;
+    });
+    _uXP.set(d.id, x);
+    if (x > mx) mx = x;
+  });
+  _uMax = mx;
+}
+
+// сырая полезность в XP (базовая, до сезонного множителя)
+const usefulXP = (id) => (ensureUseful(), _uXP.get(id) || 0);
+
+// нормированный коэффициент 0..100; √-шкала растягивает низ, чтобы слабые квесты
+// не слипались в 0, но порядок сохраняется. 0 только у квестов без XP и потомков.
+const usefulScore = (id) => {
+  ensureUseful();
+  const x = _uXP.get(id) || 0;
+  return x <= 0 ? 0 : Math.max(1, Math.round(Math.sqrt(x / _uMax) * 100));
+};
 
 function orderTraderList(list) {
   const base = (d) => d.name.split(/\s[-–—]\s/)[0].trim();
@@ -1084,6 +1132,8 @@ function showInfo(id) {
 
   html += `<div class="row"><span>${t("i_unl")}</span><span>${(childMap.get(id) || []).length}</span></div>`;
 
+  html += `<div class="row" title="${t("useful_tip")}"><span>${t("i_useful")}</span><span class="g">${usefulScore(id)} · ${sx(usefulXP(id)).toLocaleString("ru-RU")} XP</span></div>`;
+
   // цели квеста — короткие таргеты, без лора
   if (d.objectives && d.objectives.length) {
     html += `<div class="obj-title">${t("objectives")}</div><div class="objs">`;
@@ -1289,8 +1339,8 @@ function renderList() {
       va = a.exp;
       vb = b.exp;
     } else if (sortKey === "unlocks") {
-      va = descCount.get(a.id) || 0;
-      vb = descCount.get(b.id) || 0;
+      va = usefulXP(a.id);
+      vb = usefulXP(b.id);
     } else if (sortKey === "status") {
       va = status(a);
       vb = status(b);
@@ -1315,7 +1365,7 @@ function renderList() {
 
     <th data-sort="xp" class="num">${t("c_xp")} ${sortKey === "xp" ? (sortDir > 0 ? "▲" : "▼") : ""}</th>
 
-    <th data-sort="unlocks" class="num">${t("c_unlocks")} ${sortKey === "unlocks" ? (sortDir > 0 ? "▲" : "▼") : ""}</th>
+    <th data-sort="unlocks" class="num" title="${t("useful_tip")}">${t("c_unlocks")} ${sortKey === "unlocks" ? (sortDir > 0 ? "▲" : "▼") : ""}</th>
 
     <th data-sort="status">${t("c_status")} ${sortKey === "status" ? (sortDir > 0 ? "▲" : "▼") : ""}</th>
 
@@ -1347,7 +1397,7 @@ function renderList() {
 
 <td class="num">${sx(d.exp).toLocaleString("ru-RU")}</td>
 
-<td class="num">${descCount.get(d.id) || ""}</td>
+<td class="num" title="${sx(usefulXP(d.id)).toLocaleString("ru-RU")} XP">${usefulScore(d.id)}</td>
 
 <td><span class="badge b-${stt}">${bLabel[stt]}</span></td>
 
